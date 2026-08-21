@@ -1,25 +1,29 @@
 // File: app/attendance.tsx
-// Phase 2 - editable attendance for the classroom state.
-import { Feather } from '@expo/vector-icons';
-import { Stack, useRouter } from 'expo-router';
-import React from 'react';
+// Phase 2 - High-fidelity, animated classroom attendance module
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
+  TouchableOpacity,
+  ScrollView,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import Animated, {
+  FadeInDown,
+  Layout,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { Badge } from '@/components/calcmate/Badge';
-import { Button } from '@/components/calcmate/Button';
-import { Card } from '@/components/calcmate/Card';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import {
   getClassroomState,
   students as allStudents,
-  markAllStudentsPresent,
   setStudentAttendance,
   groups,
 } from '@/data/mockData';
@@ -27,158 +31,161 @@ import { Student, Group } from '@/types';
 
 type GradeFilter = 'All' | Group['grade'];
 
-function attendanceLevel(attendance: Student['attendance']) {
-  return attendance === 'present' ? 'strong' : 'critical';
-}
+// Animated Student Row Item
+const StudentRow = React.memo(({ student, onToggle, onPressProfile }: {
+  student: Student;
+  onToggle: (student: Student) => void;
+  onPressProfile: (id: string) => void;
+}) => {
+  const isPresent = student.attendance === 'present';
 
-function statusText(attendance: Student['attendance']) {
-  return attendance === 'present' ? 'Present' : 'Absent';
-}
+  const badgeStyle = useAnimatedStyle(() => ({
+    backgroundColor: withTiming(isPresent ? '#E6F4F1' : '#FDF2F0', { duration: 200 }),
+    borderColor: withTiming(isPresent ? Colors.accent : '#E57373', { duration: 200 }),
+  }));
+
+  return (
+    <Animated.View 
+      layout={Layout.springify().damping(16)} 
+      entering={FadeInDown.duration(250)}
+      style={styles.studentCard}
+    >
+      <Pressable 
+        style={styles.cardContent}
+        onPress={() => onPressProfile(student.id)}
+        android_ripple={{ color: '#F0F0F0' }}
+      >
+        <View style={[styles.avatar, isPresent && styles.avatarPresent]}>
+          <Text style={[styles.avatarText, isPresent && styles.avatarTextPresent]}>
+            {student.initials}
+          </Text>
+        </View>
+
+        <View style={styles.studentDetails}>
+          <Text style={styles.studentName}>{student.name}</Text>
+          <Text style={styles.studentMeta}>
+            {student.grade} • {student.attendanceNote || student.currentConcept}
+          </Text>
+        </View>
+
+        {/* Instant 1-Tap Attendance Toggle Button */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => onToggle(student)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Animated.View style={[styles.statusBadge, badgeStyle]}>
+            <Feather 
+              name={isPresent ? "check" : "x"} 
+              size={14} 
+              color={isPresent ? Colors.accent : '#D32F2F'} 
+            />
+            <Text style={[styles.statusText, { color: isPresent ? Colors.accent : '#D32F2F' }]}>
+              {isPresent ? 'Present' : 'Absent'}
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
+      </Pressable>
+    </Animated.View>
+  );
+});
 
 export default function AttendanceScreen() {
   const router = useRouter();
-  const [filter, setFilter] = React.useState<GradeFilter>('All');
-  
-  // We use classroomState to force a re-render when attendance changes
-  const [classroomState, setClassroomState] = React.useState(() => getClassroomState());
+  const [filter, setFilter] = useState<GradeFilter>('All');
+  const [classroomState, setClassroomState] = useState(() => getClassroomState());
 
-  const refresh = React.useCallback(() => {
+  const refreshState = useCallback(() => {
     setClassroomState(getClassroomState());
   }, []);
 
-  const roster = React.useMemo(() => {
+  const roster = useMemo(() => {
     return allStudents.filter(s => filter === 'All' || s.grade === filter);
   }, [filter, classroomState]);
 
-  const toggleStudent = React.useCallback(
-    (student: Student) => {
-      const nextStatus = student.attendance === 'present' ? 'absent' : 'present';
-      setStudentAttendance(
-        student.id,
-        nextStatus,
-        new Date().toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      );
-      refresh();
-    },
-    [refresh]
-  );
+  const toggleStudent = useCallback((student: Student) => {
+    const nextStatus = student.attendance === 'present' ? 'absent' : 'present';
+    const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    setStudentAttendance(student.id, nextStatus, time);
+    refreshState();
+  }, [refreshState]);
 
-  const markAllFilteredPresent = React.useCallback(() => {
-    // Only mark students in the current filter as present
-    const time = new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    
-    roster.forEach(student => {
-      if (student.attendance !== 'present') {
-        setStudentAttendance(student.id, 'present', time);
+  const markAllFilteredPresent = useCallback(() => {
+    const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    roster.forEach(s => {
+      if (s.attendance !== 'present') {
+        setStudentAttendance(s.id, 'present', time);
       }
     });
-    
-    refresh();
-  }, [roster, refresh]);
+    refreshState();
+  }, [roster, refreshState]);
 
   const gradeFilters = ['All', ...groups.map(g => g.grade)];
+  const attendanceRatio = classroomState.presentToday / (classroomState.totalStudents || 1);
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Attendance' }} />
-      <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={Typography.screenTitle}>Mark Attendance</Text>
-          <Text style={[Typography.bodySecondary, styles.subtitle]}>
-            Editable classroom state for all grades. Attendance changes immediately affect student profiles and downstream planning.
-          </Text>
+      <Stack.Screen options={{ title: '', headerShadowVisible: false, headerStyle: { backgroundColor: Colors.background } }} />
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
+        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+          
+          {/* Header & Quick Stat Bar */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Attendance</Text>
+              <Text style={styles.subtext}>{classroomState.activeGroups} Active Groups Today</Text>
+            </View>
+            <TouchableOpacity style={styles.markAllBtn} onPress={markAllFilteredPresent} activeOpacity={0.8}>
+              <Feather name="check-circle" size={15} color={Colors.accent} />
+              <Text style={styles.markAllText}>Mark All Present</Text>
+            </TouchableOpacity>
+          </View>
 
-          <Card style={styles.summaryCard}>
-            <Text style={Typography.eyebrow}>Classroom Today</Text>
-            <Text style={styles.presentCount}>
-              {classroomState.presentToday}
-              <Text style={styles.presentCountTotal}> / {classroomState.totalStudents}</Text>
-            </Text>
-            <Text style={Typography.bodySecondary}>
-              {classroomState.absentToday} absent, {classroomState.activeGroups} active groups
-            </Text>
-          </Card>
+          {/* Visual Progress Ratio Indicator */}
+          <View style={styles.progressCard}>
+            <View style={styles.progressRow}>
+              <Text style={styles.progressLabel}>Classroom Presence</Text>
+              <Text style={styles.progressCount}>
+                <Text style={styles.highlightCount}>{classroomState.presentToday}</Text>
+                <Text style={styles.totalCount}> / {classroomState.totalStudents}</Text>
+              </Text>
+            </View>
+            <View style={styles.progressBarTrack}>
+              <View style={[styles.progressBarFill, { width: `${attendanceRatio * 100}%` }]} />
+            </View>
+          </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-            {gradeFilters.map((gradeFilter) => {
-              const active = gradeFilter === filter;
+          {/* Horizontal Grade Filter Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterBar}>
+            {gradeFilters.map((g) => {
+              const active = g === filter;
               return (
                 <TouchableOpacity
-                  key={gradeFilter}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  key={g}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setFilter(g as GradeFilter)}
                   activeOpacity={0.85}
-                  onPress={() => setFilter(gradeFilter as GradeFilter)}
                 >
-                  <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
-                    {gradeFilter.replace('Grade ', 'G')}
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {g === 'All' ? 'All Grades' : g.replace('Grade ', 'G')}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
 
-          <View style={styles.sectionHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={Typography.sectionTitle}>{filter === 'All' ? 'All Students' : filter} roster</Text>
-              <Text style={Typography.supporting}>Tap a row to view profile.</Text>
-            </View>
-            <Button label="Mark All Present" onPress={markAllFilteredPresent} style={styles.primaryAction} />
+          {/* Student Roster List */}
+          <View style={styles.listContainer}>
+            {roster.map((student) => (
+              <StudentRow
+                key={student.id}
+                student={student}
+                onToggle={toggleStudent}
+                onPressProfile={(id) => router.push(`/students/${id}` as never)}
+              />
+            ))}
           </View>
 
-          {roster.map((student) => (
-            <Card key={student.id} style={styles.studentCard}>
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={() => router.push(`/students/${student.id}` as never)}
-              >
-                <View style={styles.studentRow}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarLabel}>{student.initials}</Text>
-                  </View>
-
-                  <View style={styles.studentCopy}>
-                    <View style={styles.nameRow}>
-                      <Text style={Typography.cardTitle}>{student.name}</Text>
-                      <Badge label={statusText(student.attendance)} level={attendanceLevel(student.attendance)} />
-                    </View>
-                    <Text style={Typography.bodySecondary}>{student.grade}</Text>
-                    <Text style={Typography.supporting}>{student.attendanceNote ?? student.currentConcept}</Text>
-                  </View>
-
-                  <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
-                </View>
-              </TouchableOpacity>
-
-              <View style={styles.rowActions}>
-                <TouchableOpacity
-                  style={[styles.smallButton, student.attendance === 'present' && styles.smallButtonActive]}
-                  activeOpacity={0.85}
-                  onPress={() => toggleStudent(student)}
-                >
-                  <Text
-                    style={[
-                      styles.smallButtonLabel,
-                      student.attendance === 'present' && styles.smallButtonLabelActive,
-                    ]}
-                  >
-                    {student.attendance === 'present' ? 'Mark Absent' : 'Mark Present'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/students/${student.id}` as never)}
-                >
-                  <Text style={styles.profileLink}>View profile</Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
-          ))}
         </ScrollView>
       </SafeAreaView>
     </>
@@ -188,122 +195,172 @@ export default function AttendanceScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.background || '#F7F8F5',
   },
-  content: {
-    padding: Spacing.md,
-    paddingBottom: Spacing.xxl * 2,
+  container: {
+    paddingHorizontal: Spacing.md || 46,
+    paddingBottom: 40,
+    marginTop: 40
   },
-  subtitle: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 16,
+    marginTop: 18,
   },
-  summaryCard: {
-    marginBottom: Spacing.lg,
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: Colors.text || '#17233C',
+    letterSpacing: -0.5,
   },
-  presentCount: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: Colors.text,
-    marginTop: Spacing.xs,
+  subtext: {
+    fontSize: 13,
+    color: '#667085',
+    marginTop: 2,
+    fontWeight: '500',
   },
-  presentCountTotal: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: Colors.textSecondary,
-  },
-  filterRow: {
-    gap: Spacing.sm,
-    paddingBottom: Spacing.lg,
-  },
-  filterChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
+  markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: Radius.md || 10,
+    backgroundColor: '#E6F4F1',
   },
-  filterChipActive: {
-    backgroundColor: Colors.accent,
-    borderColor: Colors.accent,
+  markAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.accent || '#147D7A',
   },
-  filterLabel: {
-    color: Colors.textSecondary,
+  progressCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#EAECE8',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  progressLabel: {
     fontSize: 13,
     fontWeight: '600',
+    color: '#667085',
   },
-  filterLabelActive: {
-    color: Colors.white,
+  progressCount: {
+    fontSize: 14,
   },
-  primaryAction: {
-    marginTop: 0,
+  highlightCount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text || '#17233C',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
+  totalCount: {
+    fontSize: 14,
+    color: '#667085',
+    fontWeight: '500',
+  },
+  progressBarTrack: {
+    height: 8,
+    backgroundColor: '#F0F2EE',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.accent || '#147D7A',
+    borderRadius: 999,
+  },
+  filterBar: {
+    gap: 8,
+    paddingBottom: 16,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EAECE8',
+  },
+  chipActive: {
+    backgroundColor: Colors.accent || '#147D7A',
+    borderColor: Colors.accent || '#147D7A',
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#667085',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+  listContainer: {
+    gap: 10,
   },
   studentCard: {
-    marginBottom: Spacing.md,
-    padding: Spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EAECE8',
+    overflow: 'hidden',
   },
-  studentRow: {
+  cardContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    padding: 14,
+    gap: 12,
   },
   avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.lg,
-    backgroundColor: '#E7F2F1',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F2EE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLabel: {
-    color: Colors.accent,
-    fontWeight: '700',
+  avatarPresent: {
+    backgroundColor: '#E6F4F1',
   },
-  studentCopy: {
+  avatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#667085',
+  },
+  avatarTextPresent: {
+    color: Colors.accent || '#147D7A',
+  },
+  studentDetails: {
     flex: 1,
   },
-  nameRow: {
+  studentName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text || '#17233C',
+  },
+  studentMeta: {
+    fontSize: 12,
+    color: '#667085',
+    marginTop: 2,
+  },
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  rowActions: {
-    marginTop: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  smallButton: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingVertical: 8,
+    gap: 5,
     paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
   },
-  smallButtonActive: {
-    borderColor: Colors.accent,
-    backgroundColor: '#E9F4F3',
-  },
-  smallButtonLabel: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  smallButtonLabelActive: {
-    color: Colors.accent,
-  },
-  profileLink: {
-    color: Colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

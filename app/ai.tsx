@@ -1,261 +1,203 @@
 // File: app/ai.tsx
-// Phase 5 - simplified AI workspace with a clean chat-style shell.
-import { Feather } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
+// Ultra-Minimalist Black & White AI Chat Engine with Simulated Response & Smooth Transitions
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
+  View,
   TextInput,
   TouchableOpacity,
-  View,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
 
-import { Badge } from '@/components/calcmate/Badge';
-import { Card } from '@/components/calcmate/Card';
-import { Colors, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { getClassroomState, getGroupById, upcomingClass } from '@/data/mockData';
-
-type AssistantMode = 'general' | 'class';
-
-type PromptItem = {
+type Message = {
   id: string;
-  label: string;
-  detail: string;
+  sender: 'user' | 'ai';
+  text: string;
 };
 
-const generalPrompts: PromptItem[] = [
-  { id: 'plan', label: 'Plan instruction', detail: 'Build a calm sequence for the next lesson.' },
-  { id: 'prereq', label: 'Check prerequisites', detail: 'Surface the smallest useful prior knowledge.' },
-  { id: 'practice', label: 'Generate practice', detail: 'Create teacher-ready practice with low overhead.' },
-  { id: 'status', label: 'Classroom status', detail: 'Summarize the day in one glance.' },
-];
-
-const classPrompts: PromptItem[] = [
-  { id: 'simple', label: 'Explain simply', detail: 'Turn the concept into teacher-friendly language.' },
-  { id: 'example', label: 'Give an example', detail: 'Show a short worked example for the lesson.' },
-  { id: 'check', label: 'Quick check', detail: 'Create a fast check for understanding.' },
-  { id: 'misconception', label: 'Common misconception', detail: 'Surface what to watch for.' },
-  { id: 'student', label: 'Help a student', detail: 'Shape support for a specific learner.' },
-];
-
-function getMode(paramsMode?: string | string[]): AssistantMode {
-  const value = Array.isArray(paramsMode) ? paramsMode[0] : paramsMode;
-  return value === 'class' ? 'class' : 'general';
-}
-
-function PromptChip({
-  item,
-  active,
-  onPress,
-}: {
-  item: PromptItem;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPress={onPress}
-      style={[styles.promptChip, active && styles.promptChipActive]}
-    >
-      <Text style={[styles.promptLabel, active && styles.promptLabelActive]}>{item.label}</Text>
-      <Text style={[styles.promptDetail, active && styles.promptDetailActive]}>{item.detail}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function ContextCard({ mode, groupId }: { mode: AssistantMode; groupId: string }) {
-  const group = getGroupById(groupId) ?? getGroupById(upcomingClass.groupId);
-  const classroomState = getClassroomState();
-
-  if (mode === 'class' && group) {
-    return (
-      <Card style={styles.contextCard}>
-        <View style={styles.contextTopRow}>
-          <View style={styles.contextCopy}>
-            <Text style={Typography.eyebrow}>Class AI</Text>
-            <Text style={Typography.sectionTitle}>{group.grade}</Text>
-            <Text style={[Typography.bodySecondary, styles.contextSubtitle]}>{group.currentSubject}</Text>
-            <Text style={[Typography.cardTitle, styles.contextConcept]}>{group.currentConcept}</Text>
-          </View>
-          <View style={styles.contextMark}>
-            <Feather name="book-open" size={18} color={Colors.accent} />
-          </View>
-        </View>
-
-        <View style={styles.contextMetaRow}>
-          <View style={styles.contextPill}>
-            <Feather name="clock" size={13} color={Colors.accent} />
-            <Text style={styles.contextPillText}>{upcomingClass.time}</Text>
-          </View>
-          <View style={styles.contextPill}>
-            <Feather name="users" size={13} color={Colors.accent} />
-            <Text style={styles.contextPillText}>{upcomingClass.studentsNeedingAttention} need attention</Text>
-          </View>
-        </View>
-      </Card>
-    );
-  }
-
-  return (
-    <Card style={styles.contextCard}>
-      <View style={styles.contextTopRow}>
-        <View style={styles.contextCopy}>
-          <Text style={Typography.eyebrow}>General AI</Text>
-          <Text style={Typography.sectionTitle}>How can I help?</Text>
-          <Text style={[Typography.bodySecondary, styles.contextSubtitle]}>
-            A quiet, teacher-first workspace for planning, prerequisites, and classroom support.
-          </Text>
-        </View>
-        <View style={styles.contextMark}>
-          <Feather name="zap" size={18} color={Colors.accent} />
-        </View>
-      </View>
-
-      <View style={styles.contextGrid}>
-        <View style={styles.contextMetric}>
-          <Text style={styles.contextMetricValue}>{classroomState.presentToday}</Text>
-          <Text style={Typography.supporting}>Present today</Text>
-        </View>
-        <View style={styles.contextMetric}>
-          <Text style={styles.contextMetricValue}>{classroomState.activeGroups}</Text>
-          <Text style={Typography.supporting}>Active groups</Text>
-        </View>
-        <View style={styles.contextMetric}>
-          <Text style={styles.contextMetricValue}>{upcomingClass.grade}</Text>
-          <Text style={Typography.supporting}>Next focus</Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
 export default function AIScreen() {
-  const params = useLocalSearchParams<{ mode?: string | string[]; groupId?: string | string[] }>();
-  const mode = getMode(params.mode);
-  const groupId = Array.isArray(params.groupId) ? params.groupId[0] : params.groupId ?? upcomingClass.groupId;
-  const promptSet = mode === 'class' ? classPrompts : generalPrompts;
-  const [selectedPromptId, setSelectedPromptId] = React.useState(promptSet[0].id);
-  const [draft, setDraft] = React.useState('');
+  const [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  React.useEffect(() => {
-    setSelectedPromptId(promptSet[0].id);
+  // Reanimated shared values for sleek central wave motion
+  const wave1 = useSharedValue(0.4);
+  const wave2 = useSharedValue(0.2);
+
+  useEffect(() => {
+    wave1.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.4, { duration: 2200, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+
+    wave2.value = withRepeat(
+      withSequence(
+        withTiming(0.8, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.1, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const wave1Style = useAnimatedStyle(() => ({
+    opacity: wave1.value,
+    transform: [{ scaleX: wave1.value * 1.2 }],
+  }));
+
+  const wave2Style = useAnimatedStyle(() => ({
+    opacity: wave2.value,
+    transform: [{ scaleX: wave2.value * 1.4 }],
+  }));
+
+  const handleSend = () => {
+    if (!draft.trim()) return;
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: draft.trim(),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setDraft('');
-  }, [mode, groupId, promptSet]);
+    setIsTyping(true);
 
-  const selectedPrompt = promptSet.find((item) => item.id === selectedPromptId) ?? promptSet[0];
-
-  const onSend = () => {
-    setDraft('');
+    // Simulated AI reply logic
+    setTimeout(() => {
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        sender: 'ai',
+        text: 'Welcome using Calcmate prototype, we are right now in development, Thank you!',
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+      setIsTyping(false);
+    }, 1200);
   };
 
+  useEffect(() => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages, isTyping]);
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#000000" />
+
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
-        <View style={styles.backdropTop} />
-        <View style={styles.backdropBottom} />
+        {/* Main Content Area */}
+        {messages.length === 0 ? (
+          /* Initial Center Stage Display */
+          <View style={styles.centerStage}>
+            {/* Minimalist Liquid Wave Bars Motion */}
+            <View style={styles.waveContainer}>
+              <Animated.View style={[styles.waveLine, wave1Style]} />
+              <Animated.View style={[styles.waveLineSecondary, wave2Style]} />
+            </View>
 
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.headerRow}>
-            <View style={styles.headerCopy}>
-              <Text style={Typography.eyebrow}>Calm Intelligence</Text>
-              <Text style={styles.title}>{mode === 'class' ? 'Class AI' : 'Calcmate'}</Text>
-              <Text style={[Typography.bodySecondary, styles.subtitle]}>
-                {mode === 'class'
-                  ? 'Sample prompts only for the current lesson. No response panel yet.'
-                  : 'A clean, chat-style workspace for teacher-first assistance.'}
-              </Text>
-            </View>
-            <View style={styles.logoMark}>
-              <Feather name="star" size={18} color={Colors.white} />
-            </View>
+            <Text style={styles.brandTitle}>CALCMATE</Text>
+            <Text style={styles.tagline}>Intelligence Redefined for Educators</Text>
           </View>
-
-          <ContextCard mode={mode} groupId={groupId} />
-
-          <Card style={styles.promptCard}>
-            <View style={styles.promptHeaderRow}>
-              <Text style={Typography.eyebrow}>Sample Prompts</Text>
-              <Badge label={mode === 'class' ? 'Class context' : 'General workspace'} level="developing" />
+        ) : (
+          /* Smooth Chat Interface Stream */
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.chatStream}
+            contentContainerStyle={styles.chatContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Minimal Brand Header in Stream */}
+            <View style={styles.streamHeader}>
+              <Text style={styles.streamHeaderTitle}>CALCMATE</Text>
+              <View style={styles.activePulseDot} />
             </View>
 
-            <View style={styles.promptGrid}>
-              {promptSet.map((item) => (
-                <PromptChip
-                  key={item.id}
-                  item={item}
-                  active={selectedPromptId === item.id}
-                  onPress={() => setSelectedPromptId(item.id)}
-                />
-              ))}
-            </View>
-
-            <Text style={[Typography.supporting, styles.promptHint]}>
-              Tap a prompt to prefill the composer, or type your own request below.
-            </Text>
-          </Card>
-
-          <Card style={styles.canvasCard}>
-            <View style={styles.canvasHeader}>
-              <Text style={Typography.eyebrow}>Conversation Canvas</Text>
-              <Text style={Typography.supporting}>Empty for now by design.</Text>
-            </View>
-            <View style={styles.canvasBody}>
-              <View style={styles.canvasPlaceholder}>
-                <View style={styles.canvasIcon}>
-                  <Feather name="zap" size={18} color={Colors.accent} />
-                </View>
-                <Text style={Typography.cardTitle}>Ready when you are</Text>
-                <Text style={[Typography.bodySecondary, styles.canvasPlaceholderText]}>
-                  {mode === 'class'
-                    ? 'Class mode stays lightweight with sample prompts only.'
-                    : 'Start a new teacher-first conversation from the composer below.'}
+            {messages.map((msg) => (
+              <Animated.View
+                key={msg.id}
+                entering={FadeInUp.duration(280).easing(Easing.out(Easing.quad))}
+                style={[
+                  styles.messageBubble,
+                  msg.sender === 'user' ? styles.userBubble : styles.aiBubble,
+                ]}
+              >
+                {msg.sender === 'ai' && (
+                  <View style={styles.aiBadgeRow}>
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.messageText,
+                    msg.sender === 'user' ? styles.userText : styles.aiText,
+                  ]}
+                >
+                  {msg.text}
                 </Text>
-              </View>
-            </View>
-          </Card>
+              </Animated.View>
+            ))}
 
-          <View style={styles.spacer} />
-        </ScrollView>
+            {/* Simulated Loader */}
+            {isTyping && (
+              <Animated.View
+                entering={FadeInDown.duration(200)}
+                style={[styles.messageBubble, styles.aiBubble, styles.loadingBubble]}
+              >
+                <View style={styles.typingIndicator}>
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                  <View style={styles.typingDot} />
+                </View>
+              </Animated.View>
+            )}
+          </ScrollView>
+        )}
 
-        <View style={styles.composerWrap}>
+        {/* Floating Minimalist Input Composer */}
+        <View style={styles.composerWrapper}>
           <View style={styles.composer}>
             <TextInput
+              style={styles.input}
+              placeholder="Type your message..."
+              placeholderTextColor="#555555"
               value={draft}
               onChangeText={setDraft}
-              placeholder={
-                mode === 'class'
-                  ? `Ask about ${selectedPrompt.label.toLowerCase()}...`
-                  : 'Ask Calcmate anything...'
-              }
-              placeholderTextColor={Colors.textSecondary}
-              style={styles.input}
               multiline
             />
-
             <TouchableOpacity
-              style={[styles.sendButton, !draft.trim() && styles.sendButtonMuted]}
-              activeOpacity={0.85}
-              onPress={onSend}
+              activeOpacity={0.8}
+              onPress={handleSend}
+              style={[styles.sendBtn, !draft.trim() && styles.sendBtnMuted]}
             >
-              <View style={styles.sendIconBox}>
-                <Feather name="star" size={14} color={Colors.white} />
-              </View>
-              <Text style={styles.sendLabel}>Send</Text>
+              <Feather
+                name="arrow-up"
+                size={20}
+                color={draft.trim() ? '#000000' : '#444444'}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -265,266 +207,176 @@ export default function AIScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#000000',
   },
   flex: {
     flex: 1,
   },
-  backdropTop: {
-    position: 'absolute',
-    top: -120,
-    right: -80,
-    width: 220,
-    height: 220,
-    borderRadius: 220,
-    backgroundColor: 'rgba(20, 125, 122, 0.08)',
-  },
-  backdropBottom: {
-    position: 'absolute',
-    bottom: 120,
-    left: -100,
-    width: 180,
-    height: 180,
-    borderRadius: 180,
-    backgroundColor: 'rgba(23, 35, 60, 0.05)',
-  },
-  content: {
-    padding: Spacing.md,
-    paddingBottom: 170,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  headerCopy: {
+  centerStage: {
     flex: 1,
-  },
-  title: {
-    ...Typography.screenTitle,
-    marginTop: 2,
-  },
-  subtitle: {
-    marginTop: 4,
-    maxWidth: 320,
-  },
-  logoMark: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Shadow.card,
+    paddingHorizontal: 24,
   },
-  contextCard: {
-    marginBottom: Spacing.md,
+  waveContainer: {
+    width: 120,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 20,
   },
-  contextTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
+  waveLine: {
+    width: 80,
+    height: 2,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 1,
   },
-  contextCopy: {
-    flex: 1,
+  waveLineSecondary: {
+    width: 50,
+    height: 2,
+    backgroundColor: '#888888',
+    borderRadius: 1,
   },
-  contextSubtitle: {
-    marginTop: 2,
+  brandTitle: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 12,
+    textTransform: 'uppercase',
   },
-  contextConcept: {
+  tagline: {
+    color: '#666666',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 1.5,
     marginTop: 8,
+    textTransform: 'uppercase',
   },
-  contextMark: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.md,
-    backgroundColor: '#E9F4F3',
+  chatStream: {
+    flex: 1,
+  },
+  chatContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 14,
+  },
+  streamHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#141414',
+    marginBottom: 8,
   },
-  contextGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
+  streamHeaderTitle: {
+    color: '#444444',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 4,
   },
-  contextMetric: {
-    flex: 1,
-    borderRadius: Radius.md,
-    backgroundColor: '#F8FAFC',
+  activePulseDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#FFFFFF',
+  },
+  messageBubble: {
+    maxWidth: '85%',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  userBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#FFFFFF',
+    borderBottomRightRadius: 4,
+  },
+  aiBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#111111',
     borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.sm,
+    borderColor: '#222222',
+    borderBottomLeftRadius: 4,
   },
-  contextMetricValue: {
-    color: Colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  contextMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  contextPill: {
+  aiBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 8,
+    marginBottom: 6,
   },
-  contextPillText: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: '600',
+  aiBadgeText: {
+    color: '#888888',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
-  promptCard: {
-    marginBottom: Spacing.md,
-  },
-  promptHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  promptGrid: {
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  promptChip: {
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    padding: Spacing.md,
-  },
-  promptChipActive: {
-    borderColor: Colors.accent,
-    backgroundColor: '#E9F4F3',
-  },
-  promptLabel: {
-    color: Colors.text,
+  messageText: {
     fontSize: 14,
+    lineHeight: 20,
+  },
+  userText: {
+    color: '#000000',
     fontWeight: '600',
   },
-  promptLabelActive: {
-    color: Colors.accent,
+  aiText: {
+    color: '#E5E5E5',
+    fontWeight: '500',
   },
-  promptDetail: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+  loadingBubble: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
-  promptDetailActive: {
-    color: Colors.accent,
-  },
-  promptHint: {
-    marginTop: Spacing.sm,
-  },
-  canvasCard: {
-    marginBottom: Spacing.md,
-  },
-  canvasHeader: {
+  typingIndicator: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    gap: 6,
   },
-  canvasBody: {
-    minHeight: 140,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#FBFCFD',
-    padding: Spacing.md,
-    justifyContent: 'flex-start',
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#666666',
   },
-  canvasPlaceholder: {
-    flex: 1,
-    minHeight: 108,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: Spacing.md,
-  },
-  canvasIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.lg,
-    backgroundColor: '#E9F4F3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  canvasPlaceholderText: {
-    textAlign: 'center',
-    lineHeight: 19,
-    maxWidth: 280,
-  },
-  spacer: {
-    height: 12,
-  },
-  composerWrap: {
-    position: 'absolute',
-    left: Spacing.md,
-    right: Spacing.md,
-    bottom: Spacing.md,
+  composerWrapper: {
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 20,
+    paddingTop: 10,
+    backgroundColor: '#000000',
   },
   composer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: Spacing.sm,
-    borderRadius: Radius.xl,
+    alignItems: 'center',
+    backgroundColor: '#0A0A0A',
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    padding: Spacing.sm,
-    ...Shadow.card,
+    borderColor: '#222222',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
   input: {
     flex: 1,
-    minHeight: 48,
+    color: '#FFFFFF',
+    fontSize: 15,
     maxHeight: 110,
-    borderRadius: Radius.lg,
-    color: Colors.text,
-    fontSize: 14,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 12,
-    textAlignVertical: 'center',
+    paddingVertical: 10,
+    paddingRight: 10,
   },
-  sendButton: {
-    minHeight: 48,
-    borderRadius: Radius.lg,
-    backgroundColor: Colors.accent,
-    paddingHorizontal: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sendButtonMuted: {
-    opacity: 0.7,
-  },
-  sendIconBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendLabel: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '700',
+  sendBtnMuted: {
+    backgroundColor: '#181818',
   },
 });

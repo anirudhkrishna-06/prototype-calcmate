@@ -17,7 +17,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack 
         screenOptions={{ 
-          headerShown: true,
+          headerShown: false,
           headerBackTitle: 'Back',
           headerTintColor: Colors.primary,
           headerStyle: {
