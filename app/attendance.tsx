@@ -18,13 +18,14 @@ import { Card } from '@/components/calcmate/Card';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import {
   getClassroomState,
-  getStudentsByGroup,
+  students as allStudents,
   markAllStudentsPresent,
   setStudentAttendance,
+  groups,
 } from '@/data/mockData';
-import { Student } from '@/types';
+import { Student, Group } from '@/types';
 
-const classGroupId = 'g4';
+type GradeFilter = 'All' | Group['grade'];
 
 function attendanceLevel(attendance: Student['attendance']) {
   return attendance === 'present' ? 'strong' : 'critical';
@@ -36,13 +37,18 @@ function statusText(attendance: Student['attendance']) {
 
 export default function AttendanceScreen() {
   const router = useRouter();
-  const [roster, setRoster] = React.useState(() => getStudentsByGroup(classGroupId));
+  const [filter, setFilter] = React.useState<GradeFilter>('All');
+  
+  // We use classroomState to force a re-render when attendance changes
   const [classroomState, setClassroomState] = React.useState(() => getClassroomState());
 
   const refresh = React.useCallback(() => {
-    setRoster(getStudentsByGroup(classGroupId));
     setClassroomState(getClassroomState());
   }, []);
+
+  const roster = React.useMemo(() => {
+    return allStudents.filter(s => filter === 'All' || s.grade === filter);
+  }, [filter, classroomState]);
 
   const toggleStudent = React.useCallback(
     (student: Student) => {
@@ -60,24 +66,32 @@ export default function AttendanceScreen() {
     [refresh]
   );
 
-  const markAllPresent = React.useCallback(() => {
-    markAllStudentsPresent(
-      new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    );
+  const markAllFilteredPresent = React.useCallback(() => {
+    // Only mark students in the current filter as present
+    const time = new Date().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    
+    roster.forEach(student => {
+      if (student.attendance !== 'present') {
+        setStudentAttendance(student.id, 'present', time);
+      }
+    });
+    
     refresh();
-  }, [refresh]);
+  }, [roster, refresh]);
+
+  const gradeFilters = ['All', ...groups.map(g => g.grade)];
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Attendance', headerBackTitle: 'Home' }} />
+      <Stack.Screen options={{ title: 'Attendance' }} />
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={Typography.screenTitle}>Attendance</Text>
+          <Text style={Typography.screenTitle}>Mark Attendance</Text>
           <Text style={[Typography.bodySecondary, styles.subtitle]}>
-            Editable classroom state for Grade 4. Attendance changes immediately affect student profiles and downstream planning.
+            Editable classroom state for all grades. Attendance changes immediately affect student profiles and downstream planning.
           </Text>
 
           <Card style={styles.summaryCard}>
@@ -89,12 +103,32 @@ export default function AttendanceScreen() {
             <Text style={Typography.bodySecondary}>
               {classroomState.absentToday} absent, {classroomState.activeGroups} active groups
             </Text>
-            <Button label="Mark All Present" onPress={markAllPresent} style={styles.primaryAction} />
           </Card>
 
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+            {gradeFilters.map((gradeFilter) => {
+              const active = gradeFilter === filter;
+              return (
+                <TouchableOpacity
+                  key={gradeFilter}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  activeOpacity={0.85}
+                  onPress={() => setFilter(gradeFilter as GradeFilter)}
+                >
+                  <Text style={[styles.filterLabel, active && styles.filterLabelActive]}>
+                    {gradeFilter.replace('Grade ', 'G')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
           <View style={styles.sectionHeader}>
-            <Text style={Typography.sectionTitle}>Grade 4 roster</Text>
-            <Text style={Typography.supporting}>Tap a row to open the student profile.</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={Typography.sectionTitle}>{filter === 'All' ? 'All Students' : filter} roster</Text>
+              <Text style={Typography.supporting}>Tap a row to view profile.</Text>
+            </View>
+            <Button label="Mark All Present" onPress={markAllFilteredPresent} style={styles.primaryAction} />
           </View>
 
           {roster.map((student) => (
@@ -113,8 +147,8 @@ export default function AttendanceScreen() {
                       <Text style={Typography.cardTitle}>{student.name}</Text>
                       <Badge label={statusText(student.attendance)} level={attendanceLevel(student.attendance)} />
                     </View>
-                    <Text style={Typography.bodySecondary}>{student.currentConcept}</Text>
-                    <Text style={Typography.supporting}>{student.attendanceNote ?? student.grade}</Text>
+                    <Text style={Typography.bodySecondary}>{student.grade}</Text>
+                    <Text style={Typography.supporting}>{student.attendanceNote ?? student.currentConcept}</Text>
                   </View>
 
                   <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
@@ -178,11 +212,38 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: Colors.textSecondary,
   },
+  filterRow: {
+    gap: Spacing.sm,
+    paddingBottom: Spacing.lg,
+  },
+  filterChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  filterLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  filterLabelActive: {
+    color: Colors.white,
+  },
   primaryAction: {
-    marginTop: Spacing.md,
+    marginTop: 0,
   },
   sectionHeader: {
-    marginBottom: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
   },
   studentCard: {
     marginBottom: Spacing.md,

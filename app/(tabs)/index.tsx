@@ -2,7 +2,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AIButton } from '@/components/calcmate/AIButton';
@@ -26,45 +26,57 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={Typography.screenTitle}>Good morning, Teacher</Text>
-        <Text style={[Typography.bodySecondary, styles.dateText]}>{today}</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={Typography.screenTitle}>Good morning</Text>
+            <Text style={[Typography.bodySecondary, styles.dateText]}>{today}</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/more' as never)} style={styles.settingsIcon}>
+            <Feather name="settings" size={24} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
 
         {/* Classroom status */}
-        <Card style={styles.section}>
-          <Text style={Typography.eyebrow}>Classroom Today</Text>
-          <Text style={styles.presentCount}>
-            {classroomState.presentToday}
-            <Text style={styles.presentCountTotal}> / {classroomState.totalStudents} students present</Text>
-          </Text>
-          <Text style={Typography.bodySecondary}>
-            {classroomState.attendanceCompleted ? 'Attendance completed' : 'Attendance pending'}
-          </Text>
-          <Button
-            label="Mark Attendance"
-            style={styles.attendanceButton}
-            onPress={() => router.push('/attendance' as never)}
-          />
+        <Card style={styles.attendanceCard}>
+          <Text style={Typography.eyebrow}>Total Classroom Attendance</Text>
+          <View style={styles.attendanceRow}>
+            <Text style={styles.presentCount}>
+              {classroomState.presentToday}
+              <Text style={styles.presentCountTotal}> / {classroomState.totalStudents}</Text>
+            </Text>
+            <Button
+              label={classroomState.attendanceCompleted ? 'Update' : 'Mark'}
+              style={styles.attendanceButton}
+              onPress={() => router.push('/attendance' as never)}
+            />
+          </View>
         </Card>
 
         {/* Upcoming class */}
-        <Text style={[Typography.eyebrow, styles.blockHeading]}>Upcoming Class</Text>
-        <Card style={styles.section}>
+        <Text style={[Typography.eyebrow, styles.blockHeading]}>Next Class</Text>
+        <Card style={styles.heroCard}>
           <View style={styles.classHeaderRow}>
             <Text style={Typography.sectionTitle}>{upcomingClass.grade}</Text>
-            <Text style={styles.time}>{upcomingClass.time}</Text>
+            <View style={styles.timeBadge}>
+              <Feather name="clock" size={12} color={Colors.accent} />
+              <Text style={styles.time}>{upcomingClass.time}</Text>
+            </View>
           </View>
-          <Text style={Typography.body}>{upcomingClass.subject}</Text>
+          
+          <Text style={[Typography.body, styles.subjectText]}>{upcomingClass.subject}</Text>
           <Text style={[Typography.body, styles.concept]}>{upcomingClass.concept}</Text>
 
-          <View style={styles.attentionRow}>
-            <Feather name="alert-circle" size={14} color={Colors.attention} />
-            <Text style={styles.attentionText}>
-              {upcomingClass.studentsNeedingAttention} students need attention
-            </Text>
-          </View>
+          {upcomingClass.studentsNeedingAttention > 0 && (
+            <View style={styles.attentionRow}>
+              <Feather name="alert-triangle" size={16} color={Colors.attention} />
+              <Text style={styles.attentionText}>
+                {upcomingClass.studentsNeedingAttention} students need attention
+              </Text>
+            </View>
+          )}
 
           <Button
-            label="View Class"
+            label="Start Class"
             onPress={() =>
               router.push({
                 pathname: '/pre-class',
@@ -76,12 +88,13 @@ export default function HomeScreen() {
         </Card>
 
         {/* Other groups */}
+        <Text style={[Typography.eyebrow, styles.blockHeading]}>Parallel Tasks (Other Grades)</Text>
         <Card style={styles.section}>
           <OtherGroupsStrip groups={otherGroups} />
         </Card>
 
         <Button
-          label="Schedule for the Day"
+          label="View Full Schedule"
           variant="outline"
           onPress={() => router.push('/(tabs)/schedule' as never)}
           style={styles.scheduleButton}
@@ -102,15 +115,29 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.xxl * 2,
   },
-  dateText: {
-    marginTop: 2,
-    marginBottom: Spacing.lg,
-  },
-  section: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
   },
+  settingsIcon: {
+    padding: Spacing.xs,
+  },
+  dateText: {
+    marginTop: 2,
+  },
+  attendanceCard: {
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  attendanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   presentCount: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '700',
     color: Colors.text,
     marginTop: Spacing.xs,
@@ -121,31 +148,56 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   attendanceButton: {
-    marginTop: Spacing.md,
+    minWidth: 100,
   },
   blockHeading: {
     marginBottom: Spacing.sm,
-    marginLeft: 2,
+    marginLeft: 4,
+  },
+  heroCard: {
+    marginBottom: Spacing.lg,
+    borderColor: Colors.accent,
+    borderWidth: 2,
+  },
+  section: {
+    marginBottom: Spacing.lg,
   },
   classHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E6F0ED',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
   time: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: Colors.accent,
+  },
+  subjectText: {
+    marginTop: Spacing.sm,
+    color: Colors.textSecondary,
   },
   concept: {
     fontWeight: '600',
     marginTop: 2,
+    fontSize: 16,
   },
   attentionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: Spacing.sm,
+    backgroundColor: '#FFF5EB',
+    padding: Spacing.sm,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: Spacing.md,
   },
   attentionText: {
     fontSize: 13,
@@ -153,7 +205,7 @@ const styles = StyleSheet.create({
     color: Colors.attention,
   },
   viewClassButton: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.lg,
   },
   scheduleButton: {
     marginTop: Spacing.xs,

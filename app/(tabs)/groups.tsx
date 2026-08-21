@@ -40,10 +40,9 @@ export default function GroupsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={Typography.screenTitle}>Groups</Text>
-        <Text style={[Typography.bodySecondary, styles.subtitle]}>
-          Grade-wise classroom state, presented as a quick scan rather than a dense management board.
-        </Text>
+        <View style={styles.headerContainer}>
+          <Text style={Typography.screenTitle}>Groups</Text>
+        </View>
 
         <Card style={styles.summaryCard}>
           <Text style={Typography.eyebrow}>Classroom Snapshot</Text>
@@ -57,16 +56,11 @@ export default function GroupsScreen() {
               <Text style={Typography.supporting}>Present</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{upcomingClass.grade}</Text>
+              <Text style={[styles.summaryValue, styles.focusValue]}>{upcomingClass.grade}</Text>
               <Text style={Typography.supporting}>Next focus</Text>
             </View>
           </View>
         </Card>
-
-        <View style={styles.sectionHeader}>
-          <Text style={Typography.sectionTitle}>Today&apos;s groups</Text>
-          <Text style={Typography.supporting}>Tap any group for a compact class view.</Text>
-        </View>
 
         {groups.map((group) => (
           <Card key={group.id} style={styles.groupCard}>
@@ -76,35 +70,22 @@ export default function GroupsScreen() {
                   <Text style={Typography.cardTitle}>{group.grade}</Text>
                   <Badge label={modeLabels[group.activityMode]} level={modeLevels[group.activityMode]} />
                 </View>
-                <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
               </View>
 
-              <View style={styles.metricsRow}>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricValue}>{group.studentCount}</Text>
-                  <Text style={Typography.supporting}>Students</Text>
-                </View>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricValue}>{group.presentCount}</Text>
-                  <Text style={Typography.supporting}>Present</Text>
-                </View>
-                <View style={styles.metricBlock}>
-                  <Text style={styles.metricValue}>{group.minutesRemaining ?? '—'}</Text>
-                  <Text style={Typography.supporting}>Minutes</Text>
-                </View>
-              </View>
+              <Text style={styles.studentStatsText}>
+                {group.studentCount} Students  |  {group.presentCount} Present
+              </Text>
 
               <View style={styles.conceptRow}>
-                <Text style={Typography.body}>{group.currentSubject}</Text>
-                <Text style={Typography.bodySecondary}>{group.currentConcept}</Text>
+                <Text style={Typography.bodySecondary}>Current Topic</Text>
+                <Text style={[Typography.body, styles.conceptText]}>{group.currentConcept}</Text>
               </View>
 
-              <Button
-                label="Open Group"
-                variant="outline"
-                style={styles.groupButton}
-                onPress={() => router.push(`/groups/${group.id}` as never)}
-              />
+              <View style={styles.footerRow}>
+                <Text style={Typography.supporting}>
+                  {group.minutesRemaining ? `${group.minutesRemaining} Minutes Available` : 'No time limit'}
+                </Text>
+              </View>
             </TouchableOpacity>
           </Card>
         ))}
@@ -122,9 +103,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.xxl * 2,
   },
-  subtitle: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
+  headerContainer: {
+    marginBottom: Spacing.md,
   },
   summaryCard: {
     marginBottom: Spacing.lg,
@@ -138,12 +118,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: Colors.text,
+    color: Colors.primary,
   },
-  sectionHeader: {
-    marginBottom: Spacing.sm,
+  focusValue: {
+    color: Colors.attention, // Saffron accent
   },
   groupCard: {
     marginBottom: Spacing.md,
@@ -153,7 +133,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   cardTitleRow: {
     flexDirection: 'row',
@@ -161,31 +141,21 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     flex: 1,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  metricBlock: {
-    flex: 1,
-    borderRadius: Radius.md,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.sm,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  conceptRow: {
-    gap: 2,
+  studentStatsText: {
+    color: Colors.textSecondary,
+    fontSize: 16,
     marginBottom: Spacing.md,
   },
-  groupButton: {
-    width: '100%',
+  conceptRow: {
+    marginBottom: Spacing.md,
+  },
+  conceptText: {
+    fontSize: 18,
+    marginTop: 2,
+  },
+  footerRow: {
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
 });

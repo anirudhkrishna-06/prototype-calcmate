@@ -113,7 +113,7 @@ function ContextCard({ mode, groupId }: { mode: AssistantMode; groupId: string }
           </Text>
         </View>
         <View style={styles.contextMark}>
-          <Feather name="sparkles" size={18} color={Colors.accent} />
+          <Feather name="zap" size={18} color={Colors.accent} />
         </View>
       </View>
 
@@ -217,7 +217,7 @@ export default function AIScreen() {
             <View style={styles.canvasBody}>
               <View style={styles.canvasPlaceholder}>
                 <View style={styles.canvasIcon}>
-                  <Feather name="sparkles" size={18} color={Colors.accent} />
+                  <Feather name="zap" size={18} color={Colors.accent} />
                 </View>
                 <Text style={Typography.cardTitle}>Ready when you are</Text>
                 <Text style={[Typography.bodySecondary, styles.canvasPlaceholderText]}>

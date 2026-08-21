@@ -17,16 +17,14 @@ import { Badge } from '@/components/calcmate/Badge';
 import { Card } from '@/components/calcmate/Card';
 import { EmptyState } from '@/components/calcmate/EmptyState';
 import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
-import { getClassroomState, students } from '@/data/mockData';
-import { Student } from '@/types';
+import { getClassroomState, students, groups } from '@/data/mockData';
+import { Student, Group } from '@/types';
 
-type StudentFilter = 'all' | 'present' | 'absent' | 'attention';
+type StudentFilter = 'All' | Group['grade'];
 
 const filters: { id: StudentFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'present', label: 'Present' },
-  { id: 'absent', label: 'Absent' },
-  { id: 'attention', label: 'Needs attention' },
+  { id: 'All', label: 'All' },
+  ...groups.map((group) => ({ id: group.grade, label: group.grade.replace('Grade ', 'G') })),
 ];
 
 function knowledgeLabel(level: Student['knowledgeLevel']) {
@@ -54,16 +52,13 @@ function knowledgeLevel(level: Student['knowledgeLevel']) {
 export default function StudentsScreen() {
   const router = useRouter();
   const classroomState = getClassroomState();
-  const [filter, setFilter] = React.useState<StudentFilter>('all');
+  const [filter, setFilter] = React.useState<StudentFilter>('All');
   const [query, setQuery] = React.useState('');
 
   const visibleStudents = React.useMemo(() => {
     return students.filter((student) => {
       const matchesFilter =
-        filter === 'all' ||
-        (filter === 'present' && student.attendance === 'present') ||
-        (filter === 'absent' && student.attendance === 'absent') ||
-        (filter === 'attention' && student.knowledgeLevel !== 'strong');
+        filter === 'All' || student.grade === filter;
 
       const text = `${student.name} ${student.grade} ${student.currentConcept}`.toLowerCase();
       const matchesQuery = text.includes(query.trim().toLowerCase());
@@ -75,24 +70,23 @@ export default function StudentsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={Typography.screenTitle}>Students</Text>
-        <Text style={[Typography.bodySecondary, styles.subtitle]}>
-          Compact roster view for scanning attendance and learning state.
-        </Text>
+        <View style={styles.headerContainer}>
+          <Text style={Typography.screenTitle}>Students Directory</Text>
+        </View>
 
         <Card style={styles.summaryCard}>
-          <Text style={Typography.eyebrow}>Classroom Snapshot</Text>
+          <Text style={Typography.eyebrow}>Today's Status</Text>
           <View style={styles.summaryRow}>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryValue}>{classroomState.totalStudents}</Text>
-              <Text style={Typography.supporting}>Students</Text>
+              <Text style={Typography.supporting}>Total</Text>
             </View>
             <View style={styles.summaryItem}>
               <Text style={styles.summaryValue}>{classroomState.presentToday}</Text>
               <Text style={Typography.supporting}>Present</Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryValue}>{classroomState.absentToday}</Text>
+              <Text style={[styles.summaryValue, styles.absentValue]}>{classroomState.absentToday}</Text>
               <Text style={Typography.supporting}>Absent</Text>
             </View>
           </View>
@@ -103,7 +97,7 @@ export default function StudentsScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search students"
+            placeholder="Search by name, grade, or concept..."
             placeholderTextColor={Colors.textSecondary}
             style={styles.searchInput}
           />
@@ -130,9 +124,9 @@ export default function StudentsScreen() {
             icon={<Feather name="users" size={18} color={Colors.accent} />}
             title="No students match"
             description="Try a different search term or clear the filters to see the full roster."
-            actionLabel="Show all students"
+            actionLabel="Clear filters"
             onAction={() => {
-              setFilter('all');
+              setFilter('All');
               setQuery('');
             }}
           />
@@ -148,33 +142,15 @@ export default function StudentsScreen() {
                   <Text style={styles.avatarLabel}>{student.initials}</Text>
                 </View>
                 <View style={styles.studentCopy}>
-                  <View style={styles.nameRow}>
-                    <Text style={Typography.cardTitle}>{student.name}</Text>
-                    <Badge
-                      label={student.attendance === 'present' ? 'Present' : 'Absent'}
-                      level={student.attendance === 'present' ? 'strong' : 'critical'}
-                    />
-                  </View>
-                  <Text style={Typography.bodySecondary}>{student.grade}</Text>
-                  <Text style={Typography.supporting}>{student.currentConcept}</Text>
+                  <Text style={Typography.cardTitle}>{student.name}</Text>
+                  <Text style={Typography.caption}>{student.grade}</Text>
                 </View>
-                <Feather name="chevron-right" size={18} color={Colors.textSecondary} />
+                <Badge
+                  label={student.attendance === 'present' ? 'Present' : 'Absent'}
+                  level={student.attendance === 'present' ? 'strong' : 'critical'}
+                />
               </View>
             </TouchableOpacity>
-
-            <View style={styles.footerRow}>
-              <Badge label={knowledgeLabel(student.knowledgeLevel)} level={knowledgeLevel(student.knowledgeLevel)} />
-              <TouchableOpacity
-                activeOpacity={0.85}
-                onPress={() => router.push(`/students/${student.id}` as never)}
-              >
-                <Text style={styles.profileLink}>Open profile</Text>
-              </TouchableOpacity>
-            </View>
-
-            {student.recommendation ? (
-              <Text style={[Typography.supporting, styles.recommendation]}>{student.recommendation}</Text>
-            ) : null}
           </Card>
           ))
         )}
@@ -192,9 +168,8 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.xxl * 2,
   },
-  subtitle: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
+  headerContainer: {
+    marginBottom: Spacing.md,
   },
   summaryCard: {
     marginBottom: Spacing.md,
@@ -212,6 +187,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: Colors.text,
+  },
+  absentValue: {
+    color: Colors.critical,
   },
   searchBox: {
     flexDirection: 'row',
@@ -243,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   filterChipActive: {
-    backgroundColor: '#E9F4F3',
+    backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
   filterLabel: {
@@ -252,7 +230,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterLabelActive: {
-    color: Colors.accent,
+    color: Colors.white,
   },
   studentCard: {
     marginBottom: Spacing.md,
@@ -267,7 +245,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: Radius.lg,
-    backgroundColor: '#E7F2F1',
+    backgroundColor: '#E7F2F1', // very light teal
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -286,6 +264,9 @@ const styles = StyleSheet.create({
   },
   footerRow: {
     marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -293,7 +274,7 @@ const styles = StyleSheet.create({
   profileLink: {
     color: Colors.accent,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   recommendation: {
     marginTop: Spacing.sm,

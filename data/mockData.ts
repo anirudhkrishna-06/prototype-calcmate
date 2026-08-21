@@ -68,50 +68,83 @@ export const groups: Group[] = [
 ];
 
 const studentSeed: Student[] = [
+  // Grade 1 (g1)
   {
-    id: 's1',
-    name: 'Malathi',
-    initials: 'M',
-    grade: 'Grade 4',
-    groupId: 'g4',
-    attendance: 'present',
-    currentConcept: 'Fractions',
-    knowledgeLevel: 'needs-attention',
+    id: 's_g1_1', name: 'Aarav', initials: 'A', grade: 'Grade 1', groupId: 'g1',
+    attendance: 'present', currentConcept: 'Counting', knowledgeLevel: 'strong',
+  },
+  {
+    id: 's_g1_2', name: 'Bhavya', initials: 'B', grade: 'Grade 1', groupId: 'g1',
+    attendance: 'present', currentConcept: 'Counting', knowledgeLevel: 'developing',
+  },
+  {
+    id: 's_g1_3', name: 'Chetan', initials: 'C', grade: 'Grade 1', groupId: 'g1',
+    attendance: 'absent', currentConcept: 'Counting', knowledgeLevel: 'needs-attention',
+  },
+  
+  // Grade 2 (g2)
+  {
+    id: 's_g2_1', name: 'Diya', initials: 'D', grade: 'Grade 2', groupId: 'g2',
+    attendance: 'present', currentConcept: 'Addition', knowledgeLevel: 'strong',
+  },
+  {
+    id: 's_g2_2', name: 'Eshaan', initials: 'E', grade: 'Grade 2', groupId: 'g2',
+    attendance: 'present', currentConcept: 'Addition', knowledgeLevel: 'developing',
+  },
+  {
+    id: 's_g2_3', name: 'Fathima', initials: 'F', grade: 'Grade 2', groupId: 'g2',
+    attendance: 'present', currentConcept: 'Addition', knowledgeLevel: 'strong',
+  },
+
+  // Grade 3 (g3)
+  {
+    id: 's_g3_1', name: 'Gautam', initials: 'G', grade: 'Grade 3', groupId: 'g3',
+    attendance: 'present', currentConcept: 'Division', knowledgeLevel: 'developing',
+  },
+  {
+    id: 's_g3_2', name: 'Harini', initials: 'H', grade: 'Grade 3', groupId: 'g3',
+    attendance: 'absent', currentConcept: 'Division', knowledgeLevel: 'needs-attention',
+  },
+  {
+    id: 's_g3_3', name: 'Imran', initials: 'I', grade: 'Grade 3', groupId: 'g3',
+    attendance: 'present', currentConcept: 'Division', knowledgeLevel: 'strong',
+  },
+
+  // Grade 4 (g4)
+  {
+    id: 's1', name: 'Malathi', initials: 'M', grade: 'Grade 4', groupId: 'g4',
+    attendance: 'present', currentConcept: 'Fractions', knowledgeLevel: 'needs-attention',
     recommendation: 'Missed previous fractions lesson - brief prerequisite recap recommended.',
   },
   {
-    id: 's2',
-    name: 'Ramesh',
-    initials: 'R',
-    grade: 'Grade 4',
-    groupId: 'g4',
-    attendance: 'absent',
-    attendanceNote: 'Left at 12:30',
+    id: 's2', name: 'Ramesh', initials: 'R', grade: 'Grade 4', groupId: 'g4',
+    attendance: 'absent', attendanceNote: 'Left at 12:30',
     attendanceChanges: [{ time: '12:30 PM', from: 'present', to: 'absent' }],
-    currentConcept: 'Division',
-    knowledgeLevel: 'developing',
+    currentConcept: 'Division', knowledgeLevel: 'developing',
   },
   {
-    id: 's3',
-    name: 'Arjun',
-    initials: 'A',
-    grade: 'Grade 4',
-    groupId: 'g4',
-    attendance: 'present',
-    currentConcept: 'Fractions',
-    knowledgeLevel: 'developing',
+    id: 's3', name: 'Arjun', initials: 'A', grade: 'Grade 4', groupId: 'g4',
+    attendance: 'present', currentConcept: 'Fractions', knowledgeLevel: 'developing',
     recommendation: 'Difficulty comparing fractions in previous evidence - provide guided example.',
   },
   {
-    id: 's4',
-    name: 'Kavya',
-    initials: 'K',
-    grade: 'Grade 4',
-    groupId: 'g4',
-    attendance: 'present',
-    currentConcept: 'Fractions',
-    knowledgeLevel: 'needs-attention',
+    id: 's4', name: 'Kavya', initials: 'K', grade: 'Grade 4', groupId: 'g4',
+    attendance: 'present', currentConcept: 'Fractions', knowledgeLevel: 'needs-attention',
     recommendation: 'Prerequisite concept requires reinforcement - check understanding during lesson.',
+  },
+
+  // Grade 5 (g5)
+  {
+    id: 's_g5_1', name: 'Lakshmi', initials: 'L', grade: 'Grade 5', groupId: 'g5',
+    attendance: 'present', currentConcept: 'Decimals', knowledgeLevel: 'strong',
+  },
+  {
+    id: 's_g5_2', name: 'Manoj', initials: 'M', grade: 'Grade 5', groupId: 'g5',
+    attendance: 'present', currentConcept: 'Decimals', knowledgeLevel: 'developing',
+  },
+  {
+    id: 's_g5_3', name: 'Nisha', initials: 'N', grade: 'Grade 5', groupId: 'g5',
+    attendance: 'present', currentConcept: 'Decimals', knowledgeLevel: 'needs-attention',
   },
 ];
 

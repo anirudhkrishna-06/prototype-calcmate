@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge } from '@/components/calcmate/Badge';
 import { Card } from '@/components/calcmate/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Spacing, Typography, StatusColor } from '@/constants/theme';
 import { groups, scheduleToday } from '@/data/mockData';
 import { Group, ScheduleBlock } from '@/types';
 
@@ -64,10 +64,9 @@ export default function ScheduleScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={Typography.screenTitle}>Schedule</Text>
-        <Text style={[Typography.bodySecondary, styles.subtitle]}>
-          A vertical instructional timeline that shows what the teacher and each group are doing right now.
-        </Text>
+        <View style={styles.headerContainer}>
+          <Text style={Typography.screenTitle}>Today's Schedule</Text>
+        </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           {filters.map((filter) => {
@@ -109,7 +108,7 @@ export default function ScheduleScreen() {
             </View>
 
             {groupedBlocks[time].map((block) => (
-              <Card key={block.id} style={styles.blockCard}>
+              <Card key={block.id} style={[styles.blockCard, { borderLeftColor: StatusColor[modeLevels[block.mode]] }]}>
                 <TouchableOpacity
                   activeOpacity={0.9}
                   onPress={() => router.push(`/groups/${block.groupId}` as never)}
@@ -150,8 +149,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.xxl * 2,
   },
-  subtitle: {
-    marginTop: Spacing.xs,
+  headerContainer: {
     marginBottom: Spacing.md,
   },
   filterRow: {
@@ -167,7 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   filterChipActive: {
-    backgroundColor: '#E9F4F3',
+    backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
   filterLabel: {
@@ -176,23 +174,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   filterLabelActive: {
-    color: Colors.accent,
+    color: Colors.white,
   },
   summaryCard: {
     marginBottom: Spacing.lg,
   },
   summaryRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginTop: Spacing.sm,
+    gap: Spacing.xl,
   },
   summaryItem: {
-    flex: 1,
+    // flex removed to not spread out
   },
   summaryValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
-    color: Colors.text,
+    color: Colors.primary,
   },
   timeSection: {
     marginBottom: Spacing.lg,
@@ -204,10 +203,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   timelineTime: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: Colors.primary,
-    width: 58,
+    width: 65,
   },
   timelineLine: {
     flex: 1,
@@ -217,6 +216,8 @@ const styles = StyleSheet.create({
   blockCard: {
     marginBottom: Spacing.sm,
     padding: Spacing.md,
+    marginLeft: 12,
+    borderLeftWidth: 4,
   },
   blockHeader: {
     flexDirection: 'row',
@@ -229,12 +230,16 @@ const styles = StyleSheet.create({
   },
   blockConcept: {
     marginTop: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+    fontSize: 16,
   },
   blockFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
   },
   blockMeta: {
     flexDirection: 'row',
@@ -244,6 +249,6 @@ const styles = StyleSheet.create({
   openText: {
     color: Colors.accent,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
