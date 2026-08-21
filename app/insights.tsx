@@ -42,10 +42,10 @@ export default function InsightsScreen() {
             {insightMetrics.map((metric) => (
               <Card key={metric.label} style={styles.metricCard}>
                 <View style={styles.metricTopRow}>
-                  <Text style={Typography.cardTitle}>{metric.label}</Text>
+                  <Text style={styles.metricValue}>{metric.value}</Text>
                   <TrendBadge trend={metric.trend} />
                 </View>
-                <Text style={styles.metricValue}>{metric.value}</Text>
+                <Text style={Typography.cardTitle}>{metric.label}</Text>
                 <Text style={Typography.supporting}>{metric.detail}</Text>
               </Card>
             ))}
@@ -158,13 +158,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   metricCard: {
-    width: '48%',
-    marginBottom: Spacing.sm,
+    marginBottom: 0,
   },
   metricTopRow: {
     flexDirection: 'row',

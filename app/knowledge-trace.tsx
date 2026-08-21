@@ -1,5 +1,6 @@
 // File: app/knowledge-trace.tsx
 // Phase 6 - student knowledge progression trace.
+import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -11,19 +12,28 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Badge } from '@/components/calcmate/Badge';
-import { Button } from '@/components/calcmate/Button';
 import { Card } from '@/components/calcmate/Card';
-import { Colors, Spacing, Typography } from '@/constants/theme';
+import { Colors, Radius, Spacing, Typography } from '@/constants/theme';
 import { getKnowledgeTraceForStudent, students } from '@/data/mockData';
 
+// Show the first 4 students as selectable
 const traceStudents = students.slice(0, 4);
+
+function knowledgeBadge(level: string) {
+  if (level === 'strong') return { label: 'Strong', color: Colors.accent };
+  if (level === 'developing') return { label: 'Developing', color: Colors.attention };
+  return { label: 'Needs attention', color: Colors.critical };
+}
 
 export default function KnowledgeTraceScreen() {
   const router = useRouter();
-  const [selectedStudentId, setSelectedStudentId] = React.useState(traceStudents[0]?.id ?? students[0].id);
-  const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? students[0];
+  const [selectedStudentId, setSelectedStudentId] = React.useState(
+    traceStudents[0]?.id ?? students[0].id
+  );
+  const selectedStudent =
+    students.find((student) => student.id === selectedStudentId) ?? students[0];
   const trace = getKnowledgeTraceForStudent(selectedStudent.id);
+  const badge = knowledgeBadge(selectedStudent.knowledgeLevel);
 
   return (
     <>
@@ -31,81 +41,92 @@ export default function KnowledgeTraceScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={Typography.screenTitle}>Knowledge Trace</Text>
           <Text style={[Typography.bodySecondary, styles.subtitle]}>
-            A quiet view of how learner state changes when attendance, teaching, and evidence come together.
+            A quiet view of how learner state changes when attendance, teaching, and evidence come
+            together.
           </Text>
 
-          <Card style={styles.heroCard}>
-            <Text style={Typography.eyebrow}>Student focus</Text>
+          <Card style={styles.card}>
+            <Text style={Typography.eyebrow}>Student Focus</Text>
             <View style={styles.studentChips}>
               {traceStudents.map((student) => {
                 const active = student.id === selectedStudentId;
                 return (
                   <TouchableOpacity
                     key={student.id}
-                    activeOpacity={0.9}
+                    activeOpacity={0.85}
                     onPress={() => setSelectedStudentId(student.id)}
                     style={[styles.studentChip, active && styles.studentChipActive]}
                   >
-                    <Text style={[styles.studentChipLabel, active && styles.studentChipLabelActive]}>{student.name}</Text>
-                    <Text style={[Typography.supporting, active && styles.studentChipDetailActive]}>{student.grade}</Text>
+                    <Text style={[styles.chipName, active && styles.chipNameActive]}>
+                      {student.name}
+                    </Text>
+                    <Text style={[styles.chipGrade, active && styles.chipGradeActive]}>
+                      {student.grade}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
           </Card>
 
-          <Card style={styles.sectionCard}>
-            <View style={styles.sectionTopRow}>
-              <View style={styles.sectionCopy}>
-                <Text style={Typography.sectionTitle}>{selectedStudent.name}</Text>
+          <Card style={styles.card}>
+            <View style={styles.studentHeader}>
+              <View>
+                <Text style={styles.studentName}>{selectedStudent.name}</Text>
                 <Text style={Typography.bodySecondary}>{selectedStudent.grade}</Text>
               </View>
-              <Badge
-                label={selectedStudent.knowledgeLevel === 'strong' ? 'Strong' : selectedStudent.knowledgeLevel === 'developing' ? 'Developing' : 'Needs attention'}
-                level={selectedStudent.knowledgeLevel === 'strong' ? 'strong' : selectedStudent.knowledgeLevel === 'developing' ? 'attention' : 'critical'}
-              />
+              <View style={styles.badgeRow}>
+                <View style={[styles.dot, { backgroundColor: badge.color }]} />
+                <Text style={[styles.badgeLabel, { color: badge.color }]}>{badge.label}</Text>
+              </View>
             </View>
 
-            <View style={styles.traceList}>
-              {trace.map((point, index) => (
-                <View key={point.id} style={styles.traceRow}>
-                  <View style={styles.traceRail}>
-                    <View style={styles.traceDot} />
-                    {index < trace.length - 1 ? <View style={styles.traceLine} /> : null}
-                  </View>
-                  <View style={styles.traceCopy}>
-                    <View style={styles.traceHeader}>
-                      <Text style={Typography.cardTitle}>{point.time}</Text>
-                      <Text style={styles.traceScore}>{Math.round(point.mastery * 100)}%</Text>
+            {trace.length === 0 ? (
+              <View style={styles.emptyTrace}>
+                <Feather name="activity" size={20} color={Colors.textSecondary} />
+                <Text style={[Typography.bodySecondary, { marginTop: Spacing.sm }]}>
+                  No trace data yet for this student.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.traceList}>
+                {trace.map((point, index) => (
+                  <View key={point.id} style={styles.traceRow}>
+                    <View style={styles.traceRail}>
+                      <View style={styles.traceDot} />
+                      {index < trace.length - 1 && <View style={styles.traceLine} />}
                     </View>
-                    <Text style={Typography.bodySecondary}>{point.evidence}</Text>
-                    <Text style={Typography.supporting}>{point.concept}</Text>
+                    <View style={styles.traceCopy}>
+                      <View style={styles.traceTopRow}>
+                        <Text style={styles.traceTime}>{point.time}</Text>
+                        <Text style={styles.traceScore}>{Math.round(point.mastery * 100)}%</Text>
+                      </View>
+                      <Text style={Typography.body}>{point.evidence}</Text>
+                      <Text style={[Typography.supporting, styles.traceConcept]}>
+                        {point.concept}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
+                ))}
+              </View>
+            )}
           </Card>
 
-          <Card style={styles.sectionCard}>
+          <Card style={styles.card}>
             <Text style={Typography.eyebrow}>What this means</Text>
-            <Text style={[Typography.bodySecondary, styles.sectionBody]}>
-              The trace shows a shift from a fragile starting point toward a stronger outcome after teacher support and classroom evidence.
+            <Text style={[Typography.body, styles.sectionBody]}>
+              The trace shows a shift from a fragile starting point toward a stronger outcome after
+              teacher support and classroom evidence.
             </Text>
           </Card>
 
-          <View style={styles.actionRow}>
-            <Button
-              label="Open Student Profile"
-              onPress={() => router.push(`/students/${selectedStudent.id}` as never)}
-              style={styles.flexButton}
-            />
-            <Button
-              label="Open Insights"
-              variant="outline"
-              onPress={() => router.push('/insights' as never)}
-              style={styles.flexButton}
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.actionButton}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/students/${selectedStudent.id}` as never)}
+          >
+            <Text style={styles.actionButtonLabel}>Open Student Profile</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </>
@@ -113,109 +134,38 @@ export default function KnowledgeTraceScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: Spacing.md,
-    paddingBottom: Spacing.xxl * 2,
-  },
-  subtitle: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  heroCard: {
-    marginBottom: Spacing.md,
-  },
-  studentChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
+  safe: { flex: 1, backgroundColor: Colors.background },
+  content: { padding: Spacing.md, paddingBottom: Spacing.xxl * 2 },
+  subtitle: { marginTop: Spacing.xs, marginBottom: Spacing.lg },
+  card: { marginBottom: Spacing.md },
+  studentChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
   studentChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
+    borderRadius: 999, borderWidth: 1.5, borderColor: Colors.border,
+    backgroundColor: Colors.surface, paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm, alignItems: 'center',
   },
-  studentChipActive: {
-    borderColor: Colors.accent,
-    backgroundColor: '#E9F4F3',
-  },
-  studentChipLabel: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  studentChipLabelActive: {
-    color: Colors.accent,
-  },
-  studentChipDetailActive: {
-    color: Colors.accent,
-  },
-  sectionCard: {
-    marginBottom: Spacing.md,
-  },
-  sectionTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-    alignItems: 'flex-start',
-  },
-  sectionCopy: {
-    flex: 1,
-  },
-  traceList: {
-    marginTop: Spacing.md,
-    gap: Spacing.sm,
-  },
-  traceRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  traceRail: {
-    width: 18,
-    alignItems: 'center',
-  },
-  traceDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: Colors.accent,
-    marginTop: 5,
-  },
-  traceLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: Colors.border,
-    marginTop: 4,
-  },
-  traceCopy: {
-    flex: 1,
-    paddingBottom: Spacing.sm,
-  },
-  traceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  traceScore: {
-    color: Colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  sectionBody: {
-    marginTop: Spacing.sm,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  flexButton: {
-    flex: 1,
-  },
+  studentChipActive: { borderColor: Colors.accent, backgroundColor: '#E6F2F0' },
+  chipName: { fontSize: 14, fontWeight: '700', color: Colors.text, textAlign: 'center' },
+  chipNameActive: { color: Colors.accent },
+  chipGrade: { fontSize: 12, color: Colors.textSecondary, textAlign: 'center', marginTop: 1 },
+  chipGradeActive: { color: Colors.accent },
+  studentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.lg },
+  studentName: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  badgeLabel: { fontSize: 13, fontWeight: '600' },
+  emptyTrace: { alignItems: 'center', paddingVertical: Spacing.xl },
+  traceList: { gap: 0 },
+  traceRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
+  traceRail: { width: 18, alignItems: 'center', paddingTop: 4 },
+  traceDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: Colors.accent },
+  traceLine: { width: 2, flex: 1, backgroundColor: Colors.border, marginTop: 4, minHeight: 40 },
+  traceCopy: { flex: 1, paddingBottom: Spacing.sm },
+  traceTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  traceTime: { fontSize: 18, fontWeight: '700', color: Colors.text },
+  traceScore: { fontSize: 16, fontWeight: '700', color: Colors.accent },
+  traceConcept: { marginTop: 2 },
+  sectionBody: { marginTop: Spacing.sm, lineHeight: 22 },
+  actionButton: { backgroundColor: Colors.accent, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center' },
+  actionButtonLabel: { color: Colors.white, fontSize: 15, fontWeight: '700' },
 });
