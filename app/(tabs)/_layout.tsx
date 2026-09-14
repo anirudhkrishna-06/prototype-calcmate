@@ -1,26 +1,46 @@
-// File: app/(tabs)/_layout.tsx
-// Replaces the default Expo template tab layout.
-//
-// Only the daily-use screens live in the tab bar (per the "Final UX
-// decision" in the screen architecture doc). Occasional-use screens
-// (Insights, Assessments detail, Settings) are reached from Home/More
-// in later phases, keeping the bar itself uncluttered.
-
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Colors } from '@/constants/theme';
+import { Platform } from 'react-native';
 
-export default function TabLayout() {
+import { useAppSettings } from '@/contexts/AppSettingsContext';
+
+export default function TabsLayout() {
+  const { colors } = useAppSettings();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.accent,
-        tabBarInactiveTintColor: Colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.border,
+          height: Platform.OS === 'web' ? 76 : 88,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+          shadowColor: colors.shadow,
+          shadowOpacity: 0.05,
+          shadowRadius: 12,
+          elevation: 8,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'android' ? 12 : 8,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarItemStyle: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          minWidth: 0,
+          maxWidth: '100%',
+          paddingHorizontal: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '800',
+          textAlign: 'center',
+          marginTop: 4,
+          flexShrink: 0,
+          flexWrap: 'nowrap',
         },
       }}
     >
@@ -28,35 +48,49 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Feather name="home" color={color} size={size} />,
+          tabBarIcon: ({ color }) => <Feather name="home" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="schedule"
+        name="plan"
         options={{
-          title: 'Schedule',
-          tabBarIcon: ({ color, size }) => <Feather name="calendar" color={color} size={size} />,
+          title: 'Plan',
+          tabBarIcon: ({ color }) => <Feather name="calendar" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="students"
+        name="students-page"
         options={{
           title: 'Students',
-          tabBarIcon: ({ color, size }) => <Feather name="users" color={color} size={size} />,
+          tabBarIcon: ({ color }) => <Feather name="users" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="assessment-management"
         options={{
-          title: 'Groups',
-          tabBarIcon: ({ color, size }) => <Feather name="layers" color={color} size={size} />,
+          title: 'Tests',
+          tabBarIcon: ({ color }) => <Feather name="clipboard" size={22} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="more"
+        name="ai-assistant"
         options={{
-          title: 'More',
-          tabBarIcon: ({ color, size }) => <Feather name="grid" color={color} size={size} />,
+          title: 'AI',
+          tabBarIcon: ({ color }) => <Feather name="cpu" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="analytics-dashboard"
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ color }) => <Feather name="bar-chart" size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color }) => <Feather name="settings" size={22} color={color} />,
         }}
       />
     </Tabs>

@@ -1,6 +1,8 @@
 import { SymbolView, SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { StyleProp, ViewStyle } from 'react-native';
 
+type IconSymbolName = SymbolViewProps['name'] | 'spark';
+
 export function IconSymbol({
   name,
   size = 24,
@@ -8,7 +10,7 @@ export function IconSymbol({
   style,
   weight = 'regular',
 }: {
-  name: SymbolViewProps['name'];
+  name: IconSymbolName;
   size?: number;
   color: string;
   style?: StyleProp<ViewStyle>;
@@ -19,7 +21,7 @@ export function IconSymbol({
       weight={weight}
       tintColor={color}
       resizeMode="scaleAspectFit"
-      name={name}
+      name={name === 'spark' ? 'sparkles' : name}
       style={[
         {
           width: size,

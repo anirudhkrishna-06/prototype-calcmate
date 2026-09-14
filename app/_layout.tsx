@@ -3,28 +3,36 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
+import { AppSettingsProvider, useAppSettings } from '@/contexts/AppSettingsContext';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  return (
+    <AppSettingsProvider>
+      <RootNavigator />
+    </AppSettingsProvider>
+  );
+}
+
+function RootNavigator() {
+  const { darkMode, colors } = useAppSettings();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack 
-        screenOptions={{ 
+    <ThemeProvider value={darkMode ? DarkTheme : DefaultTheme}>
+      <Stack
+        screenOptions={{
           headerShown: true,
           headerBackTitle: 'Back',
-          headerTintColor: Colors.primary,
+          headerTintColor: darkMode ? colors.text : Colors.primary,
           headerStyle: {
-            backgroundColor: Colors.background, // Warm off-white, never black
+            backgroundColor: colors.background,
           },
           headerTitleStyle: {
-            color: Colors.text,
+            color: colors.text,
             fontWeight: '600',
             fontSize: 17,
           },
@@ -32,9 +40,12 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="student-detail" options={{ headerShown: true, title: 'Student Detail' }} />
+        <Stack.Screen name="assessment-detail" options={{ headerShown: true, title: 'Assessment Detail' }} />
+        <Stack.Screen name="planner-detail" options={{ headerShown: true, title: 'Planner Detail' }} />
+        <Stack.Screen name="analytics-topic-detail" options={{ headerShown: true, title: 'Analytics Detail' }} />
       </Stack>
-      <StatusBar style="dark" />
+      <StatusBar style={darkMode ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
