@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
-    Image,
     Modal,
     Pressable,
     ScrollView,
@@ -9,9 +9,10 @@ import {
     Text,
     TouchableOpacity,
     View,
-    useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { timetableSlots } from '@/data/classroomSetup';
 
 type Grade = 1 | 2 | 3 | 4 | 5;
 type AttendanceStatus = 'Present' | 'Absent';
@@ -72,53 +73,17 @@ const schoolInfo = {
   academicYear: '2026-27',
 };
 
-const timetable: TimetableLesson[] = [
-  {
-    title: 'Number Sense Warm-Up',
-    grade: 'Grade 1',
-    subject: 'Mathematics',
-    topic: 'Place Value',
-    time: '08:30 - 09:15',
-    duration: '45 min',
-    kind: 'current',
-  },
-  {
-    title: 'Fractions Exploration',
-    grade: 'Grade 2',
-    subject: 'Mathematics',
-    topic: 'Equivalent Fractions',
-    time: '09:30 - 10:15',
-    duration: '45 min',
-    kind: 'next',
-  },
-  {
-    title: 'Reading Studio',
-    grade: 'Grade 3',
-    subject: 'English',
-    topic: 'Reading Strategies',
-    time: '10:30 - 11:15',
-    duration: '45 min',
-    kind: 'remaining',
-  },
-  {
-    title: 'Science Thinking Cycle',
-    grade: 'Grade 4',
-    subject: 'Science',
-    topic: 'Living Systems',
-    time: '11:30 - 12:15',
-    duration: '45 min',
-    kind: 'remaining',
-  },
-  {
-    title: 'Problem Solving Lab',
-    grade: 'Grade 5',
-    subject: 'Mathematics',
-    topic: 'Data Interpretation',
-    time: '13:00 - 13:45',
-    duration: '45 min',
-    kind: 'remaining',
-  },
-];
+const timetable: TimetableLesson[] = timetableSlots
+  .filter((slot) => slot.day === 'Monday' && slot.kind === 'lesson')
+  .map((slot, index) => ({
+    title: `${slot.subject} Block`,
+    grade: slot.grade,
+    subject: slot.subject,
+    topic: slot.topic,
+    time: `${slot.startTime} - ${slot.endTime}`,
+    duration: `${slot.durationMinutes} min`,
+    kind: index === 0 ? 'current' : index === 1 ? 'next' : 'remaining',
+  }));
 
 const orchestrator = [
   {
@@ -191,9 +156,30 @@ const assessments = [
   },
 ];
 
+const teachingSnapshot = [
+  { label: 'Classes today', value: String(timetable.length), icon: 'calendar' },
+  { label: 'Upcoming assessments', value: String(assessments.length), icon: 'clipboard' },
+  { label: 'Pending lesson plans', value: '2', icon: 'book-open' },
+  { label: 'AI recommendations', value: '4', icon: 'cpu' },
+] as const;
+
+const teacherBriefing = [
+  { label: 'Upcoming class', value: 'Grade 2 Mathematics', detail: '09:15 - Equivalent Fractions', icon: 'clock', tone: 'primary' },
+  { label: 'Next assessment', value: 'Grade 2 English', detail: '10:00 - Reading Fluency Check', icon: 'clipboard', tone: 'warning' },
+  { label: 'Immediate intervention', value: '5 students', detail: 'Start with high-risk reading support', icon: 'alert-triangle', tone: 'danger' },
+  { label: 'AI recommendation', value: 'Pair practice', detail: 'Use 10-minute mixed-grade fraction cards', icon: 'cpu', tone: 'success' },
+] as const;
+
+const multiGradeStatus = [
+  { grade: 'G1', topic: 'Place Value', completion: 72, support: 1 },
+  { grade: 'G2', topic: 'Equivalent Fractions', completion: 58, support: 2 },
+  { grade: 'G3', topic: 'Reading Strategies', completion: 81, support: 1 },
+  { grade: 'G4', topic: 'Living Systems', completion: 64, support: 2 },
+  { grade: 'G5', topic: 'Data Interpretation', completion: 69, support: 1 },
+] as const;
+
 export default function CalcmateMainScreen() {
-  const { width } = useWindowDimensions();
-  const isSmallDevice = width < 360;
+  const router = useRouter();
   const [attendanceVisible, setAttendanceVisible] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<Grade>(1);
   const [localAttendance, setLocalAttendance] = useState<AttendanceMap>(attendanceMap);
@@ -202,6 +188,7 @@ export default function CalcmateMainScreen() {
   const currentClass = timetable.find((lesson) => lesson.kind === 'current') ?? timetable[0];
   const nextClass = timetable.find((lesson) => lesson.kind === 'next') ?? timetable[1] ?? timetable[0];
   const remainingClasses = timetable.filter((lesson) => lesson.kind === 'remaining');
+  const isSmallDevice = false;
 
   const totalStudents = useMemo(() => {
     return Object.values(localAttendance).reduce((sum, gradeList) => sum + gradeList.length, 0);
@@ -242,9 +229,6 @@ export default function CalcmateMainScreen() {
         <View style={styles.dashboardShell}>
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
-              <View style={styles.logoWrap}>
-                <Image source={require('../../assets/images/icon.png')} style={styles.logo} resizeMode="contain" />
-              </View>
               <View style={styles.headerTextWrap}>
                 <Text style={styles.greeting}>Greetings Teacher!</Text>
                 <Text style={styles.dateText}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</Text>
@@ -282,56 +266,120 @@ export default function CalcmateMainScreen() {
             </View>
           </View>
 
-          <View style={styles.cardSection}>
+          <View style={styles.snapshotCard}>
             <View style={styles.sectionHeaderCompact}>
-              <Text style={styles.sectionTitle}>Current Classroom Summary</Text>
-              <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>Live</Text></View>
+              <View style={styles.sectionTitleWrap}>
+                <Text style={styles.sectionTitle}>{"Today's Teaching Snapshot"}</Text>
+                <Text style={styles.sectionCaption}>What needs attention after attendance</Text>
+              </View>
+              <View style={styles.liveBadge}><Text style={styles.liveBadgeText}>Now</Text></View>
             </View>
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{totalStudents}</Text>
-                <Text style={styles.summaryLabel}>Students Active</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>{attendanceOverview.present}</Text>
-                <Text style={styles.summaryLabel}>Present Today</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryValue}>5</Text>
-                <Text style={styles.summaryLabel}>Grades Managed</Text>
-              </View>
+            <View style={styles.snapshotGrid}>
+              {teachingSnapshot.map((item) => (
+                <View key={item.label} style={styles.snapshotItem}>
+                  <View style={styles.snapshotIcon}>
+                    <Feather name={item.icon} size={15} color="#2563EB" />
+                  </View>
+                  <Text style={styles.snapshotValue}>{item.value}</Text>
+                  <Text style={styles.snapshotLabel}>{item.label}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
           <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>{"Today's Timetable"}</Text>
-            <Text style={styles.todayChip}>Today</Text>
-          </View>
-
-          <View style={styles.timetableGrid}>
-            <View style={styles.timelineCardCurrent}>
-              <Text style={styles.cardLabel}>Current Class</Text>
-              <Text style={styles.gradeName}>{currentClass.grade}</Text>
-              <Text style={styles.subjectName}>{currentClass.subject}</Text>
-              <Text style={styles.topicName}>{currentClass.topic}</Text>
-              <View style={styles.timeRow}>
-                <Feather name="clock" size={14} color="#126B65" />
-                <Text style={styles.timeText}>{currentClass.time}</Text>
-              </View>
-            </View>
-
-            <View style={styles.timelineCard}>
-              <Text style={styles.cardLabel}>Next Class</Text>
-              <Text style={styles.gradeName}>{nextClass.grade}</Text>
-              <Text style={styles.subjectName}>{nextClass.subject}</Text>
-              <Text style={styles.topicName}>{nextClass.topic}</Text>
-              <View style={styles.timeRow}>
-                <Feather name="clock" size={14} color="#126B65" />
-                <Text style={styles.timeText}>{nextClass.time}</Text>
-              </View>
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>Teacher Briefing</Text>
+              <Text style={styles.sectionCaption}>What needs attention before the next period</Text>
             </View>
           </View>
 
+          <View style={styles.briefingCard}>
+            {teacherBriefing.map((item) => (
+              <View key={item.label} style={styles.briefingRow}>
+                <View
+                  style={[
+                    styles.briefingIcon,
+                    item.tone === 'warning' && styles.briefingIconWarning,
+                    item.tone === 'danger' && styles.briefingIconDanger,
+                    item.tone === 'success' && styles.briefingIconSuccess,
+                  ]}
+                >
+                  <Feather
+                    name={item.icon}
+                    size={17}
+                    color={
+                      item.tone === 'warning'
+                        ? '#A96716'
+                        : item.tone === 'danger'
+                          ? '#B9423A'
+                          : item.tone === 'success'
+                            ? '#0F766E'
+                            : '#2563EB'
+                    }
+                  />
+                </View>
+                <View style={styles.briefingCopy}>
+                  <Text style={styles.briefingLabel}>{item.label}</Text>
+                  <Text style={styles.briefingValue} numberOfLines={1}>{item.value}</Text>
+                  <Text style={styles.briefingDetail} numberOfLines={2}>{item.detail}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.statusBoardCard}>
+            <View style={styles.sectionHeaderCompact}>
+              <View style={styles.sectionTitleWrap}>
+                <Text style={styles.sectionTitle}>Multi-Grade Status Board</Text>
+                <Text style={styles.sectionCaption}>Tap a grade to view details</Text>
+              </View>
+              <Text style={styles.todayChip}>Grades 1-5</Text>
+            </View>
+
+            <View style={styles.classStrip}>
+              <View style={styles.classStripBlock}>
+                <Text style={styles.classStripLabel}>Current</Text>
+                <Text style={styles.classStripValue}>{currentClass.grade}</Text>
+                <Text style={styles.classStripTopic}>{currentClass.topic}</Text>
+              </View>
+              <View style={styles.classStripDivider} />
+              <View style={styles.classStripBlock}>
+                <Text style={styles.classStripLabel}>Next</Text>
+                <Text style={styles.classStripValue}>{nextClass.grade}</Text>
+                <Text style={styles.classStripTopic}>{nextClass.topic}</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusList}>
+              {multiGradeStatus.map((item) => (
+                <TouchableOpacity
+                  key={item.grade}
+                  style={styles.statusRow}
+                  activeOpacity={0.82}
+                  onPress={() => router.push('/analytics-topic-detail')}
+                >
+                  <View style={styles.gradeCircle}>
+                    <Text style={styles.gradeCircleText}>{item.grade}</Text>
+                  </View>
+                  <View style={styles.statusMain}>
+                    <Text style={styles.statusTopic}>{item.topic}</Text>
+                    <View style={styles.progressTrack}>
+                      <View style={[styles.progressFill, { width: `${item.completion}%` }]} />
+                    </View>
+                  </View>
+                  <View style={styles.statusMeta}>
+                    <Text style={styles.completionText}>{item.completion}%</Text>
+                    <Text style={styles.supportText}>{item.support} support</Text>
+                  </View>
+                  <Feather name="chevron-right" size={16} color="#94A3B8" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {false && (
+            <>
           <View style={styles.remainingCard}>
             <View style={styles.remainingCardTitleRow}>
               <Text style={styles.remainingCardTitle}>Remaining Classes</Text>
@@ -408,6 +456,8 @@ export default function CalcmateMainScreen() {
               </View>
             ))}
           </View>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -504,23 +554,8 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  logoWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  logo: {
-    width: 44,
-    height: 44,
+    flex: 1,
+    minWidth: 0,
   },
   headerTextWrap: {
     flex: 1,
@@ -613,11 +648,70 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: 10,
   },
+  sectionTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  sectionCaption: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 3,
+    flexWrap: 'wrap',
+  },
+  snapshotCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 3,
+    marginBottom: 10,
+  },
+  snapshotGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  snapshotItem: {
+    flexBasis: '48%',
+    flexGrow: 1,
+    minWidth: 130,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+  },
+  snapshotIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  snapshotValue: {
+    color: '#0F172A',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  snapshotLabel: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    flexWrap: 'wrap',
+  },
   sectionHeaderCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
+    minWidth: 0,
   },
   liveBadge: {
     borderRadius: 14,
@@ -657,6 +751,222 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 4,
+  },
+  briefingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  briefingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 66,
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    minWidth: 0,
+  },
+  briefingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  briefingIconWarning: { backgroundColor: '#FFF1DD' },
+  briefingIconDanger: { backgroundColor: '#FFE5E1' },
+  briefingIconSuccess: { backgroundColor: '#DCFCE7' },
+  briefingCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  briefingLabel: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  briefingValue: {
+    color: '#0F172A',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  briefingDetail: {
+    color: '#475569',
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  statusBoardCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    marginTop: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  classStrip: {
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    marginBottom: 8,
+    minWidth: 0,
+  },
+  classStripBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  classStripDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 10,
+  },
+  classStripLabel: {
+    color: '#64748B',
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  classStripValue: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '900',
+    marginTop: 4,
+  },
+  classStripTopic: {
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+    flexWrap: 'wrap',
+  },
+  statusList: {
+    gap: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+    minWidth: 0,
+  },
+  gradeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  gradeCircleText: {
+    color: '#047857',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  statusMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  statusTopic: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '900',
+    flexWrap: 'wrap',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+    marginTop: 7,
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2563EB',
+  },
+  statusMeta: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+    marginRight: 6,
+    minWidth: 58,
+    flexShrink: 0,
+  },
+  completionText: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  supportText: {
+    color: '#B45309',
+    fontSize: 10,
+    fontWeight: '800',
+    marginTop: 3,
+    textAlign: 'right',
+  },
+  activityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    minWidth: 0,
+  },
+  activityIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EAFBF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+  },
+  activityCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  activityLabel: {
+    color: '#0F172A',
+    fontSize: 13,
+    fontWeight: '900',
+    flexWrap: 'wrap',
+  },
+  activityValue: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 3,
+    flexWrap: 'wrap',
   },
   summaryGrid: {
     flexDirection: 'row',

@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import React, { memo, useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -56,7 +56,7 @@ type StoredMark = {
   remarks: string;
 };
 
-const TODAY = '2026-09-14';
+const TODAY = '2026-09-15';
 const gradeOptions = [1, 2, 3, 4, 5] as Grade[];
 const subjects = ['Mathematics', 'English', 'Science', 'Social Studies'];
 const remarksOptions = ['Excellent', 'Good Progress', 'Needs Support', 'Absent'];
@@ -169,18 +169,20 @@ const AssessmentCard = memo(function AssessmentCard({ assessment }: { assessment
 
       <View style={styles.metaGrid}>
         <View style={styles.metaItem}>
+          <Text style={styles.metaLabel}>Subject</Text>
+          <Text style={styles.metaText} numberOfLines={1}>{assessment.subject}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabel}>Grade</Text>
+          <Text style={styles.metaText} numberOfLines={1}>Grade {assessment.grade}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaLabel}>Date</Text>
           <Feather name="calendar" size={15} color="#5C6B73" />
           <Text style={styles.metaText} numberOfLines={1}>{isToday ? 'Today' : formatDate(assessment.date)}</Text>
         </View>
-        <View style={styles.metaItem}>
-          <Feather name="clock" size={15} color="#5C6B73" />
-          <Text style={styles.metaText} numberOfLines={1}>{assessment.time}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Feather name="clock" size={15} color="#5C6B73" />
-          <Text style={styles.metaText} numberOfLines={1}>{assessment.duration}</Text>
-        </View>
         <View style={[styles.statusChip, { backgroundColor: status.background }]}>
+          <Text style={styles.metaLabel}>Status</Text>
           <Text style={[styles.statusChipText, { color: status.color }]} numberOfLines={1}>{assessment.status}</Text>
         </View>
       </View>
@@ -189,10 +191,6 @@ const AssessmentCard = memo(function AssessmentCard({ assessment }: { assessment
         <TouchableOpacity style={styles.startButton} activeOpacity={0.86}>
           <Feather name="play-circle" size={17} color="#FFFFFF" />
           <Text style={styles.startButtonText}>Start Assessment</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.detailButton} activeOpacity={0.86}>
-          <Feather name="eye" size={17} color="#1A2B4C" />
-          <Text style={styles.detailButtonText}>View Details</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -204,14 +202,21 @@ const StudentMarkCard = memo(function StudentMarkCard({
   maxMarks,
   onMarksChange,
   onRemarksChange,
+  inputRef,
+  isLast,
+  onNext,
 }: {
   item: StudentMarks;
   maxMarks: number;
   onMarksChange: (id: string, value: string) => void;
   onRemarksChange: (id: string, value: string) => void;
+  inputRef: React.Ref<TextInput>;
+  isLast: boolean;
+  onNext: () => void;
 }) {
   const percentage = Math.round((item.marks / maxMarks) * 100);
   const initials = item.student.split(' ').map((part) => part[0]).join('').slice(0, 2);
+  const markDigits = String(maxMarks).length;
 
   return (
     <View style={styles.studentCard}>
@@ -231,12 +236,22 @@ const StudentMarkCard = memo(function StudentMarkCard({
           <Text style={styles.controlLabel}>Marks</Text>
           <View style={styles.marksInputBox}>
             <TextInput
+              ref={inputRef}
               style={styles.marksInput}
               value={String(item.marks)}
               keyboardType="numeric"
-              maxLength={3}
+              inputMode="numeric"
+              maxLength={markDigits}
+              returnKeyType={isLast ? 'done' : 'next'}
+              blurOnSubmit={isLast}
               selectTextOnFocus
-              onChangeText={(value) => onMarksChange(item.id, value)}
+              onChangeText={(value) => {
+                onMarksChange(item.id, value);
+                if (!isLast && value.replace(/[^0-9]/g, '').length >= markDigits) {
+                  onNext();
+                }
+              }}
+              onSubmitEditing={onNext}
             />
             <Text style={styles.maxMarksText}>/{maxMarks}</Text>
           </View>
@@ -279,6 +294,15 @@ function HistoryCard({ item }: { item: HistoryAssessment }) {
   );
 }
 
+function SummaryTile({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryTile}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
+
 function EmptyState({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <View style={styles.emptyState}>
@@ -302,6 +326,8 @@ export default function AssessmentManagementPage() {
   const [historySearch, setHistorySearch] = useState('');
   const [sortMode, setSortMode] = useState<SortMode>('Newest');
   const [marks, setMarks] = useState<Record<string, StoredMark>>(marksEntrySeed);
+  const [resultsGenerated, setResultsGenerated] = useState(false);
+  const inputRefs = useRef<Record<string, TextInput | null>>({});
 
   const assessmentOptions = useMemo(() => {
     const matched = currentAssessments.filter((item) => item.grade === selectedGrade && item.subject === selectedSubject);
@@ -353,6 +379,17 @@ export default function AssessmentManagementPage() {
       });
   }, [historyGrade, historyMonth, historySearch, historySubject, sortMode]);
 
+  const classSummary = useMemo(() => {
+    const scores = selectedGradeMarks.map((item) => Math.round((item.marks / selectedAssessment.maxMarks) * 100));
+    const total = scores.reduce((sum, score) => sum + score, 0);
+    const average = scores.length > 0 ? Math.round(total / scores.length) : 0;
+    const highest = scores.length > 0 ? Math.max(...scores) : 0;
+    const lowest = scores.length > 0 ? Math.min(...scores) : 0;
+    const passPercent = scores.length > 0 ? Math.round((scores.filter((score) => score >= 40).length / scores.length) * 100) : 0;
+
+    return { average, highest, lowest, passPercent };
+  }, [selectedAssessment.maxMarks, selectedGradeMarks]);
+
   const updateMark = useCallback((studentId: string, newMark: string) => {
     const parsed = Number(newMark.replace(/[^0-9]/g, ''));
     const value = Math.min(selectedAssessment.maxMarks, Math.max(0, Number.isNaN(parsed) ? 0 : parsed));
@@ -364,6 +401,19 @@ export default function AssessmentManagementPage() {
       },
     }));
   }, [selectedAssessment.maxMarks]);
+
+  const focusNextStudent = useCallback((currentIndex: number) => {
+    const nextStudent = selectedGradeMarks[currentIndex + 1];
+    if (nextStudent) {
+      requestAnimationFrame(() => inputRefs.current[nextStudent.id]?.focus());
+      return;
+    }
+    inputRefs.current[selectedGradeMarks[currentIndex]?.id ?? '']?.blur();
+  }, [selectedGradeMarks]);
+
+  const saveMarks = useCallback(() => {
+    setResultsGenerated(true);
+  }, []);
 
   const updateRemarks = useCallback((studentId: string, remarks: string) => {
     setMarks((currentMarks) => ({
@@ -384,6 +434,7 @@ export default function AssessmentManagementPage() {
       setSelectedAssessmentId(nextAssessment.id);
       setSelectedSubject(nextAssessment.subject);
     }
+    setResultsGenerated(false);
   };
 
   const handleSubjectChange = (value: string) => {
@@ -393,6 +444,7 @@ export default function AssessmentManagementPage() {
     if (nextAssessment) {
       setSelectedAssessmentId(nextAssessment.id);
     }
+    setResultsGenerated(false);
   };
 
   const renderHeader = () => (
@@ -460,18 +512,38 @@ export default function AssessmentManagementPage() {
                     options={assessmentOptions.map((item) => item.topic)}
                     onChange={(value) => {
                       const nextAssessment = assessmentOptions.find((item) => item.topic === value);
-                      if (nextAssessment) setSelectedAssessmentId(nextAssessment.id);
+                      if (nextAssessment) {
+                        setSelectedAssessmentId(nextAssessment.id);
+                        setResultsGenerated(false);
+                      }
                     }}
                   />
                 </View>
+                <View style={styles.summaryGrid}>
+                  <SummaryTile label="Average Score" value={`${classSummary.average}%`} />
+                  <SummaryTile label="Highest Score" value={`${classSummary.highest}%`} />
+                  <SummaryTile label="Lowest Score" value={`${classSummary.lowest}%`} />
+                  <SummaryTile label="Pass %" value={`${classSummary.passPercent}%`} />
+                </View>
+                {resultsGenerated && (
+                  <View style={styles.generatedBanner}>
+                    <Feather name="check-circle" size={18} color="#006A4E" />
+                    <Text style={styles.generatedText}>Results generated automatically from saved marks.</Text>
+                  </View>
+                )}
               </>
             )}
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
               <StudentMarkCard
                 item={item}
                 maxMarks={selectedAssessment.maxMarks}
                 onMarksChange={updateMark}
                 onRemarksChange={updateRemarks}
+                inputRef={(element) => {
+                  inputRefs.current[item.id] = element;
+                }}
+                isLast={index === selectedGradeMarks.length - 1}
+                onNext={() => focusNextStudent(index)}
               />
             )}
             ItemSeparatorComponent={() => <View style={styles.cardGap} />}
@@ -482,7 +554,7 @@ export default function AssessmentManagementPage() {
               <Text style={styles.saveTitle}>{selectedGradeMarks.length} students</Text>
               <Text style={styles.saveSubtitle}>Auto-calculated percentages</Text>
             </View>
-            <TouchableOpacity style={styles.saveButton} activeOpacity={0.88}>
+            <TouchableOpacity style={styles.saveButton} onPress={saveMarks} activeOpacity={0.88}>
               <Feather name="save" size={18} color="#FFFFFF" />
               <Text style={styles.saveButtonText}>Save Marks</Text>
             </TouchableOpacity>
@@ -620,7 +692,7 @@ const styles = StyleSheet.create({
   panelText: { color: '#5C6B73', fontWeight: '600', fontSize: 13, marginTop: 4 },
   assessmentCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: '#DDE3EA',
@@ -631,40 +703,42 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   cardTopRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  subjectIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  subjectIcon: { width: 46, height: 46, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   cardTitleBlock: { flex: 1, minWidth: 0 },
   assessmentSubject: { color: '#5C6B73', fontSize: 12, fontWeight: '800' },
   assessmentTitle: { color: '#1A2B4C', fontSize: 17, lineHeight: 22, fontWeight: '800', marginTop: 3 },
-  gradeBadge: { minWidth: 42, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F4F3', paddingHorizontal: 8 },
+  gradeBadge: { minWidth: 42, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F4F3', paddingHorizontal: 8 },
   gradeBadgeText: { color: '#1A2B4C', fontWeight: '900', fontSize: 13 },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   metaItem: {
     flexGrow: 1,
     flexBasis: '47%',
     minHeight: 38,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
     backgroundColor: '#F5F7F6',
   },
+  metaLabel: { color: '#8B989F', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   metaText: { flex: 1, minWidth: 0, color: '#44515A', fontSize: 12, fontWeight: '700' },
   statusChip: {
     flexGrow: 1,
     flexBasis: '47%',
     minHeight: 38,
-    borderRadius: 12,
+    borderRadius: 8,
     paddingHorizontal: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 2,
   },
   statusChipText: { fontSize: 12, fontWeight: '900' },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
   startButton: {
     flex: 1,
     minHeight: 44,
-    borderRadius: 13,
+    borderRadius: 8,
     backgroundColor: '#006A4E',
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,23 +747,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   startButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  detailButton: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: '#DDE3EA',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 10,
-  },
-  detailButtonText: { color: '#1A2B4C', fontSize: 13, fontWeight: '800' },
   selectionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 14,
     borderWidth: 1,
     borderColor: '#DDE3EA',
@@ -700,7 +760,7 @@ const styles = StyleSheet.create({
   controlLabel: { color: '#5C6B73', fontSize: 11, fontWeight: '800', marginBottom: 7 },
   dropdownButton: {
     minHeight: 46,
-    borderRadius: 13,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#DDE3EA',
     backgroundColor: '#F9FBFA',
@@ -712,7 +772,7 @@ const styles = StyleSheet.create({
   dropdownValue: { flex: 1, minWidth: 0, color: '#1A2B4C', fontSize: 14, fontWeight: '800' },
   dropdownMenu: {
     marginTop: 6,
-    borderRadius: 13,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#DDE3EA',
     backgroundColor: '#FFFFFF',
@@ -724,24 +784,24 @@ const styles = StyleSheet.create({
   dropdownOptionTextActive: { color: '#006A4E', fontWeight: '900' },
   studentCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 15,
     borderWidth: 1,
     borderColor: '#DDE3EA',
   },
   studentTop: { flexDirection: 'row', alignItems: 'center', gap: 11 },
-  avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#E8F2FA', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#E8F2FA', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#1E5B8C', fontSize: 14, fontWeight: '900' },
   studentIdentity: { flex: 1, minWidth: 0 },
   studentName: { color: '#1A2B4C', fontSize: 16, fontWeight: '800' },
   rollNumber: { color: '#5C6B73', fontSize: 12, fontWeight: '700', marginTop: 3 },
-  percentageBadge: { minWidth: 58, height: 36, borderRadius: 12, backgroundColor: '#DDF4EA', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  percentageBadge: { minWidth: 58, height: 36, borderRadius: 8, backgroundColor: '#DDF4EA', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   percentageValue: { color: '#006A4E', fontSize: 14, fontWeight: '900' },
-  entryRow: { flexDirection: 'row', gap: 12, marginTop: 14, alignItems: 'flex-start' },
-  marksInputWrap: { width: 102 },
+  entryRow: { gap: 12, marginTop: 16 },
+  marksInputWrap: { width: '100%' },
   marksInputBox: {
-    minHeight: 46,
-    borderRadius: 13,
+    minHeight: 74,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#DDE3EA',
     backgroundColor: '#F9FBFA',
@@ -749,9 +809,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 10,
   },
-  marksInput: { flex: 1, color: '#1A2B4C', fontSize: 16, fontWeight: '900', paddingVertical: 9, textAlign: 'center' },
-  maxMarksText: { color: '#8B989F', fontSize: 12, fontWeight: '800' },
+  marksInput: { flex: 1, color: '#1A2B4C', fontSize: 34, fontWeight: '900', paddingVertical: 8, textAlign: 'center' },
+  maxMarksText: { color: '#8B989F', fontSize: 16, fontWeight: '900' },
   remarksWrap: { flex: 1, minWidth: 0 },
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
+  summaryTile: {
+    flexGrow: 1,
+    flexBasis: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE3EA',
+    padding: 13,
+  },
+  summaryLabel: { color: '#5C6B73', fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
+  summaryValue: { color: '#1A2B4C', fontSize: 22, fontWeight: '900', marginTop: 6 },
+  generatedBanner: {
+    minHeight: 44,
+    borderRadius: 8,
+    backgroundColor: '#E6F3EE',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  generatedText: { flex: 1, minWidth: 0, color: '#006A4E', fontSize: 13, fontWeight: '800' },
   saveBar: {
     position: 'absolute',
     left: 0,
@@ -785,7 +869,7 @@ const styles = StyleSheet.create({
   saveButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   searchBox: {
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#DDE3EA',
     backgroundColor: '#FFFFFF',
@@ -798,7 +882,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, minWidth: 0, color: '#1A2B4C', fontSize: 14, fontWeight: '700', paddingVertical: 10 },
   compactFilters: { gap: 10, marginBottom: 14 },
   sortRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  sortChip: { minHeight: 36, borderRadius: 12, backgroundColor: '#E9EFEE', paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  sortChip: { minHeight: 36, borderRadius: 8, backgroundColor: '#E9EFEE', paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   sortChipActive: { backgroundColor: '#1A2B4C' },
   sortChipText: { color: '#5C6B73', fontSize: 12, fontWeight: '800' },
   sortChipTextActive: { color: '#FFFFFF' },
@@ -810,7 +894,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 15,
     borderWidth: 1,
     borderColor: '#DDE3EA',
@@ -819,21 +903,21 @@ const styles = StyleSheet.create({
   historyTitleBlock: { flex: 1, minWidth: 0 },
   historyTitle: { color: '#1A2B4C', fontSize: 16, lineHeight: 21, fontWeight: '900' },
   historySubject: { color: '#5C6B73', fontSize: 13, fontWeight: '800', marginTop: 4 },
-  scoreBadge: { minWidth: 58, height: 38, borderRadius: 13, backgroundColor: '#E6F3EE', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  scoreBadge: { minWidth: 58, height: 38, borderRadius: 8, backgroundColor: '#E6F3EE', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   scoreBadgeText: { color: '#006A4E', fontSize: 14, fontWeight: '900' },
   historyMetaWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  historyMeta: { color: '#44515A', fontSize: 12, fontWeight: '800', backgroundColor: '#F5F7F6', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
-  historyMetaStrong: { color: '#006A4E', fontSize: 12, fontWeight: '900', backgroundColor: '#DDF4EA', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
+  historyMeta: { color: '#44515A', fontSize: 12, fontWeight: '800', backgroundColor: '#F5F7F6', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7 },
+  historyMetaStrong: { color: '#006A4E', fontSize: 12, fontWeight: '900', backgroundColor: '#DDF4EA', borderRadius: 8, paddingHorizontal: 9, paddingVertical: 7 },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 8,
     padding: 24,
     borderWidth: 1,
     borderColor: '#DDE3EA',
   },
-  emptyIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: '#DDF4EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+  emptyIcon: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#DDF4EA', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
   emptyTitle: { color: '#1A2B4C', fontSize: 16, fontWeight: '900' },
   emptySubtitle: { color: '#5C6B73', fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 5 },
   cardGap: { height: 12 },

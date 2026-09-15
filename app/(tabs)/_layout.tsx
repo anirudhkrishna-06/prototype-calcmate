@@ -26,6 +26,9 @@ export default function TabsLayout() {
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarItemStyle: {
           flex: 1,
           justifyContent: 'center',
@@ -52,13 +55,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="plan"
-        options={{
-          title: 'Plan',
-          tabBarIcon: ({ color }) => <Feather name="calendar" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="students-page"
         options={{
           title: 'Students',
@@ -68,7 +64,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="assessment-management"
         options={{
-          title: 'Tests',
+          title: 'Assessments',
           tabBarIcon: ({ color }) => <Feather name="clipboard" size={22} color={color} />,
         }}
       />

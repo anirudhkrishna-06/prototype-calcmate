@@ -119,6 +119,10 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    configureNotifications(notificationsEnabled);
+  }, [notificationsEnabled]);
+
+  useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected === false) {
         setSyncStatus('Offline');
@@ -166,6 +170,16 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     setBackupTimestamp(timestamp);
     await persist({ backupStatus: 'Success', backupTimestamp: timestamp });
   }, [persist]);
+
+  useEffect(() => {
+    if (syncStatus !== 'Online') return;
+
+    const timer = setTimeout(() => {
+      void runBackup();
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [runBackup, syncStatus]);
 
   const value = useMemo<AppSettingsContextValue>(() => ({
     darkMode,
