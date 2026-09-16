@@ -15,6 +15,13 @@ type LearningGroup = {
 };
 
 const riskWeight = { High: 0, Medium: 1, Low: 2 };
+const knowledgeGraphConcepts = ['Numbers', 'Place Value', 'Addition', 'Subtraction', 'Multiplication', 'Division', 'Fractions'];
+const knowledgeGraphSummary = [
+  { label: 'Total Concepts', value: 7 },
+  { label: 'Completed Concepts', value: 3 },
+  { label: 'In Progress Concepts', value: 2 },
+  { label: 'Concepts Requiring Intervention', value: 2 },
+] as const;
 
 function getAssessmentAverage(student: StudentProfile) {
   return Math.round((student.scores.Mathematics + student.scores.English + student.scores.Science) / 3);
@@ -103,6 +110,53 @@ function LearningGroupCard({ group, onStudentPress }: { group: LearningGroup; on
             <Text style={styles.emptyGroupText}>No learners need this group right now.</Text>
           </View>
         )}
+      </View>
+    </View>
+  );
+}
+
+function KnowledgeGraphCard({ grade }: { grade: Grade }) {
+  return (
+    <View style={styles.knowledgeGraphCard}>
+      <View style={styles.knowledgeGraphHeader}>
+        <View style={styles.knowledgeGraphIcon}>
+          <Feather name="share-2" size={18} color="#126B65" />
+        </View>
+        <View style={styles.knowledgeGraphTitleBlock}>
+          <Text style={styles.knowledgeGraphTitle}>Curriculum Knowledge Graph</Text>
+          <Text style={styles.knowledgeGraphSubtitle}>Explore curriculum pathways and learner readiness</Text>
+        </View>
+      </View>
+
+      <View style={styles.knowledgeSummaryGrid}>
+        {knowledgeGraphSummary.map((item) => (
+          <View key={item.label} style={styles.knowledgeSummaryCard}>
+            <Text style={styles.knowledgeSummaryValue}>{item.value}</Text>
+            <Text style={styles.knowledgeSummaryLabel}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.graphPanel}>
+        <View style={styles.graphPanelHeader}>
+          <Text style={styles.graphPanelTitle}>Grade {grade} Knowledge Graph</Text>
+          <Text style={styles.graphPanelCaption}>Interactive Knowledge Graph</Text>
+        </View>
+        <View style={styles.conceptPath}>
+          {knowledgeGraphConcepts.map((concept, index) => (
+            <View key={concept} style={styles.conceptStep}>
+              <View style={styles.conceptNode}>
+                <Text style={styles.conceptText}>{concept}</Text>
+              </View>
+              {index < knowledgeGraphConcepts.length - 1 && (
+                <View style={styles.connectorWrap}>
+                  <View style={styles.connectorLine} />
+                  <Feather name="arrow-down" size={16} color="#126B65" />
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -219,6 +273,12 @@ export default function StudentsPage() {
         </View>
 
         <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Topic Knowledge Graph</Text>
+          <Text style={styles.sectionCaption}>Grade {selectedGrade} curriculum concept pathway</Text>
+        </View>
+        <KnowledgeGraphCard grade={selectedGrade} />
+
+        <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Learning Groups</Text>
           <Text style={styles.sectionCaption}>Open the first red or amber card when time is tight</Text>
         </View>
@@ -289,4 +349,24 @@ const styles = StyleSheet.create({
   searchBox: { minHeight: 48, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE9E7', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
   searchInput: { flex: 1, minWidth: 0, color: '#163C40', fontSize: 14, fontWeight: '800', paddingVertical: 10 },
   searchResults: { gap: 8, marginTop: 4 },
+  knowledgeGraphCard: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 14, borderWidth: 1, borderColor: '#DCE9E7', marginBottom: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+  knowledgeGraphHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  knowledgeGraphIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF7F1' },
+  knowledgeGraphTitleBlock: { flex: 1, minWidth: 0 },
+  knowledgeGraphTitle: { color: '#163C40', fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  knowledgeGraphSubtitle: { color: '#607878', fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3 },
+  knowledgeSummaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  knowledgeSummaryCard: { flexGrow: 1, flexBasis: '47%', minHeight: 74, borderRadius: 8, backgroundColor: '#F8FBFA', borderWidth: 1, borderColor: '#DCE9E7', padding: 10, justifyContent: 'space-between' },
+  knowledgeSummaryValue: { color: '#163C40', fontSize: 22, fontWeight: '900' },
+  knowledgeSummaryLabel: { color: '#607878', fontSize: 11, lineHeight: 15, fontWeight: '800' },
+  graphPanel: { marginTop: 14, borderRadius: 8, backgroundColor: '#F8FBFA', borderWidth: 1, borderColor: '#DCE9E7', padding: 12 },
+  graphPanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 },
+  graphPanelTitle: { flex: 1, minWidth: 0, color: '#163C40', fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  graphPanelCaption: { color: '#126B65', fontSize: 11, fontWeight: '900' },
+  conceptPath: { alignItems: 'center' },
+  conceptStep: { width: '100%', alignItems: 'center' },
+  conceptNode: { minWidth: 180, maxWidth: '100%', minHeight: 42, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#BFE7D5', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 9 },
+  conceptText: { color: '#163C40', fontSize: 14, lineHeight: 18, fontWeight: '900', textAlign: 'center' },
+  connectorWrap: { alignItems: 'center', paddingVertical: 4 },
+  connectorLine: { width: 2, height: 12, borderRadius: 1, backgroundColor: '#BFE7D5' },
 });
