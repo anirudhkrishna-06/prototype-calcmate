@@ -13,32 +13,43 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          height: Platform.OS === 'web' ? 76 : 88,
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          shadowColor: colors.shadow,
-          shadowOpacity: 0.05,
-          shadowRadius: 12,
-          elevation: 8,
+          position: 'absolute',
+          left: 14,
+          right: 14,
+          bottom: Platform.OS === 'android' ? 12 : 16,
+          height: Platform.OS === 'web' ? 72 : 76,
+          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          borderTopWidth: 0,
+          borderRadius: 28,
+          shadowColor: '#0F4C45',
+          shadowOpacity: 0.14,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 12 },
+          elevation: 16,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'android' ? 12 : 8,
+          paddingBottom: Platform.OS === 'android' ? 8 : 10,
+          paddingHorizontal: 6,
         },
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: '#0F4C45',
         tabBarInactiveTintColor: colors.textSecondary,
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarItemStyle: {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
           minWidth: 0,
           maxWidth: '100%',
-          paddingHorizontal: 4,
+          borderRadius: 22,
+          marginHorizontal: 1,
+          paddingHorizontal: 2,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '800',
+          fontSize: 10,
+          fontWeight: '900',
           textAlign: 'center',
-          marginTop: 4,
+          marginTop: 3,
           flexShrink: 0,
           flexWrap: 'nowrap',
         },
@@ -52,13 +63,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="plan"
-        options={{
-          title: 'Plan',
-          tabBarIcon: ({ color }) => <Feather name="calendar" size={22} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="students-page"
         options={{
           title: 'Students',
@@ -68,7 +72,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="assessment-management"
         options={{
-          title: 'Tests',
+          title: 'Assessments',
           tabBarIcon: ({ color }) => <Feather name="clipboard" size={22} color={color} />,
         }}
       />

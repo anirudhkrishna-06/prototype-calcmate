@@ -1,89 +1,147 @@
 import { Feather } from '@expo/vector-icons';
-import React from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppSettings } from '@/contexts/AppSettingsContext';
-import { students } from '../../data/tamilStudentData';
+import {
+  classroomSetup,
+  getTimetableSlotsForDay,
+  schoolDays,
+  type SchoolDay,
+} from '@/data/classroomSetup';
 
 const teacherProfile = {
   name: 'Mary',
-  role: 'Class Teacher',
-  teacherId: 'CAL-2026-045',
   school: 'Government Primary School, Chennai South',
-  gradesHandled: 'Grades 1 - 5',
-  subjectsHandled: 'Mathematics, English, Science, Social Studies',
-  academicYear: '2026 - 2027',
+  classLevelsHandled: 'Grades 1 to 5',
+  academicYear: '2026-27',
 };
 
-const appInformation = {
-  version: '2.8.3',
-  build: 'Build 44',
-  storageUsage: '68% used - 2.4 GB available',
-};
-
-function SettingRow({
-  icon,
+function SectionCard({
   title,
-  subtitle,
-  value,
-  switchValue,
-  onSwitch,
+  icon,
+  children,
 }: {
-  icon: keyof typeof Feather.glyphMap;
   title: string;
-  subtitle?: string;
-  value?: string;
-  switchValue?: boolean;
-  onSwitch?: (value: boolean) => void;
+  icon: keyof typeof Feather.glyphMap;
+  children: React.ReactNode;
 }) {
   const { colors } = useAppSettings();
 
   return (
-    <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
-      <View style={styles.settingLeft}>
-        <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}>
-          <Feather name={icon} size={18} color={colors.primary} />
-        </View>
-        <View style={styles.settingCopy}>
-          <Text style={[styles.settingTitle, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
-          {subtitle ? (
-            <Text style={[styles.settingSubtitle, { color: colors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
-              {subtitle}
-            </Text>
-          ) : null}
+    <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.sectionHeader, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]} numberOfLines={2}>{title}</Text>
+        <View style={[styles.sectionIcon, { backgroundColor: colors.surfaceSoft }]}>
+          <Feather name={icon} size={17} color={colors.primary} />
         </View>
       </View>
-      {typeof switchValue === 'boolean' ? (
-        <Switch
-          value={switchValue}
-          onValueChange={onSwitch}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor="#FFFFFF"
-        />
-      ) : (
-        <Text style={[styles.rowValue, { color: colors.text }]} numberOfLines={2} ellipsizeMode="tail">
-          {value}
-        </Text>
-      )}
+      {children}
     </View>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string | number }) {
+function ToggleRow({
+  icon,
+  title,
+  subtitle,
+  value,
+  onValueChange,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  title: string;
+  subtitle: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+}) {
+  const { colors } = useAppSettings();
+
+  return (
+    <View style={[styles.row, { borderBottomColor: colors.border }]}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}>
+        <Feather name={icon} size={18} color={colors.primary} />
+      </View>
+      <View style={styles.rowCopy}>
+        <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>{title}</Text>
+        <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]} numberOfLines={3}>{subtitle}</Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor="#FFFFFF"
+      />
+    </View>
+  );
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  value: string;
+  accent?: string;
+}) {
   const { colors } = useAppSettings();
 
   return (
     <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-      <Text style={[styles.infoLabel, { color: colors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">{label}</Text>
-      <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={2} ellipsizeMode="tail">{value}</Text>
+      <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}>
+        <Feather name={icon} size={17} color={accent ?? colors.primary} />
+      </View>
+      <View style={styles.rowCopy}>
+        <Text style={[styles.infoLabel, { color: colors.textSecondary }]} numberOfLines={2}>{label}</Text>
+        <Text style={[styles.infoValue, { color: colors.text }]} numberOfLines={4}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+function StatusPill({ label, color }: { label: string; color: string }) {
+  const { colors } = useAppSettings();
+
+  return (
+    <View style={[styles.statusPill, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
+      <View style={[styles.statusDot, { backgroundColor: color }]} />
+      <Text style={[styles.statusPillText, { color }]} numberOfLines={1}>{label}</Text>
+    </View>
+  );
+}
+
+function TimetableSlotRow({
+  grade,
+  subject,
+  topic,
+  time,
+  isBreak,
+}: {
+  grade: string;
+  subject: string;
+  topic: string;
+  time: string;
+  isBreak: boolean;
+}) {
+  const { colors } = useAppSettings();
+
+  return (
+    <View style={[styles.slotRow, { borderBottomColor: colors.border }]}>
+      <View style={[styles.slotTimePill, { backgroundColor: colors.surfaceSoft }]}>
+        <Text style={[styles.slotTimeText, { color: colors.primary }]} numberOfLines={1}>{time}</Text>
+      </View>
+      <View style={styles.slotCopy}>
+        <View style={styles.slotLabelRow}>
+          <View style={[styles.slotGradeBadge, { backgroundColor: isBreak ? colors.border : colors.primary }]}>
+            <Text style={styles.slotGradeText} numberOfLines={1}>{isBreak ? 'Break' : grade.replace('Grade ', 'G')}</Text>
+          </View>
+          <Text style={[styles.slotSubject, { color: colors.text }]} numberOfLines={1}>{subject}</Text>
+        </View>
+        <Text style={[styles.slotSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>{topic}</Text>
+      </View>
     </View>
   );
 }
@@ -99,106 +157,118 @@ export default function SettingsPage() {
     colors,
     setDarkMode,
     setNotificationsEnabled,
-    runBackup,
   } = useAppSettings();
+  const [selectedDay, setSelectedDay] = useState<SchoolDay>('Monday');
 
-  const statusColor = syncStatus === 'Online' ? colors.success : syncStatus === 'Syncing' ? colors.warning : colors.danger;
+  const syncColor = syncStatus === 'Online' ? colors.success : syncStatus === 'Syncing' ? colors.warning : colors.danger;
   const backupColor = backupStatus === 'Success' ? colors.success : backupStatus === 'Failed' ? colors.danger : colors.warning;
+  const selectedDaySlots = useMemo(() => getTimetableSlotsForDay(selectedDay), [selectedDay]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.pageHeader}>
           <View style={styles.headerCopy}>
-            <Text style={[styles.crumb, { color: colors.success }]}>Calcmate Control</Text>
-            <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-          </View>
-          <TouchableOpacity style={[styles.headerButton, { backgroundColor: colors.surface, borderColor: colors.border }]} activeOpacity={0.86} onPress={runBackup}>
-            <Feather name="save" size={18} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-          <View style={styles.profileTop}>
-            <View style={[styles.avatarCircle, { backgroundColor: colors.surfaceSoft }]}>
-              <Text style={[styles.avatarText, { color: colors.primary }]}>M</Text>
-            </View>
-            <View style={styles.profileMeta}>
-              <Text style={[styles.teacherName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{teacherProfile.name}</Text>
-              <Text style={[styles.teacherTitle, { color: colors.textSecondary }]} numberOfLines={2} ellipsizeMode="tail">
-                {teacherProfile.role} - {teacherProfile.school}
-              </Text>
-            </View>
+            <Text style={[styles.crumb, { color: colors.success }]} numberOfLines={1}>Calcmate Control</Text>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>Settings</Text>
           </View>
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-          <View style={[styles.sectionHead, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>App Preferences</Text>
-            <Feather name="settings" size={18} color={colors.primary} />
+        <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.avatarCircle, { backgroundColor: colors.surfaceSoft }]}>
+            <Text style={[styles.avatarText, { color: colors.primary }]}>M</Text>
           </View>
-
-          <SettingRow icon="moon" title="Dark Mode" subtitle="Apply app-wide dark theme" switchValue={darkMode} onSwitch={setDarkMode} />
-          <SettingRow icon="bell" title="Notifications" subtitle="Class reminders and sync alerts" switchValue={notificationsEnabled} onSwitch={setNotificationsEnabled} />
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-          <View style={[styles.sectionHead, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Sync & Storage</Text>
-            <Feather name="hard-drive" size={18} color={colors.primary} />
-          </View>
-
-          <View style={styles.statusPanel}>
-            <View style={[styles.statusChip, { backgroundColor: colors.surfaceSoft }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusChipText, { color: statusColor }]} numberOfLines={1}>{syncStatus}</Text>
-            </View>
-            <Text style={[styles.lastSyncText, { color: colors.textSecondary }]} numberOfLines={1} ellipsizeMode="tail">
-              Last Sync: {lastSyncTime}
+          <View style={styles.profileCopy}>
+            <Text style={[styles.teacherName, { color: colors.text }]} numberOfLines={1}>Mary</Text>
+            <Text style={[styles.teacherSchool, { color: colors.textSecondary }]} numberOfLines={3}>{teacherProfile.school}</Text>
+            <Text style={[styles.teacherMeta, { color: colors.textSecondary }]} numberOfLines={1}>
+              {teacherProfile.classLevelsHandled} - {teacherProfile.academicYear}
             </Text>
           </View>
+        </View>
 
-          <SettingRow icon="wifi" title="Offline Storage Status" subtitle="Local classroom cache" value={syncStatus} />
-          <SettingRow icon="clock" title="Last Sync Time" subtitle="Updated from connectivity service" value={lastSyncTime} />
-          <SettingRow icon="database" title="Data Backup" subtitle={`Status: ${backupStatus}`} value={backupTimestamp} />
+        <SectionCard title="Timetable" icon="calendar">
+          <InfoRow icon="calendar" label="School Week" value={classroomSetup.schoolWeek} />
+          <InfoRow icon="grid" label="Periods Per Day" value={`${classroomSetup.periodsPerDay} periods`} />
+          <InfoRow icon="clock" label="Default Period Duration" value={classroomSetup.defaultPeriodDuration} />
+          <InfoRow icon="coffee" label="Break Time" value={classroomSetup.breakTime} />
+          <InfoRow icon="bell" label="Reminder Window" value={classroomSetup.reminderWindow} />
 
-          <TouchableOpacity style={[styles.backupButton, { backgroundColor: colors.primary }]} activeOpacity={0.86} onPress={runBackup}>
-            <Feather name={backupStatus === 'Failed' ? 'alert-circle' : 'upload-cloud'} size={18} color="#FFFFFF" />
-            <Text style={styles.backupButtonText} numberOfLines={1} ellipsizeMode="tail">
-              Backup Now - {backupStatus}
+          <View style={styles.daySelectorRow}>
+            {schoolDays.map((day) => (
+              <TouchableOpacity
+                key={day}
+                style={[
+                  styles.dayChip,
+                  {
+                    backgroundColor: selectedDay === day ? colors.primary : colors.surfaceSoft,
+                    borderColor: selectedDay === day ? colors.primary : colors.border,
+                  },
+                ]}
+                activeOpacity={0.82}
+                onPress={() => setSelectedDay(day)}
+              >
+                <Text
+                  style={[styles.dayChipText, { color: selectedDay === day ? '#FFFFFF' : colors.text }]}
+                  numberOfLines={1}
+                >
+                  {day.slice(0, 3)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={[styles.timetablePanel, { borderColor: colors.border, backgroundColor: colors.background }]}>
+            <Text style={[styles.timetableTitle, { color: colors.text }]}>{selectedDay} Timetable</Text>
+            <Text style={[styles.timetableCaption, { color: colors.textSecondary }]}>
+              Used to manage multi-grade teaching schedules.
             </Text>
-          </TouchableOpacity>
-          <Text style={[styles.backupState, { color: backupColor }]} numberOfLines={1} ellipsizeMode="tail">
-            Latest backup: {backupTimestamp}
+            {selectedDaySlots.map((slot) => (
+              <TimetableSlotRow
+                key={`${slot.day}-${slot.startTime}-${slot.grade}`}
+                grade={slot.grade}
+                subject={slot.subject}
+                topic={slot.topic}
+                time={`${slot.startTime}-${slot.endTime}`}
+                isBreak={slot.kind === 'break'}
+              />
+            ))}
+          </View>
+        </SectionCard>
+
+        <SectionCard title="App Settings" icon="settings">
+          <ToggleRow
+            icon="moon"
+            title="Dark Mode"
+            subtitle="Applies the saved theme across navigation, cards, and teacher tools."
+            value={darkMode}
+            onValueChange={(value) => void setDarkMode(value)}
+          />
+          <ToggleRow
+            icon="bell"
+            title="Notifications"
+            subtitle="Class reminders and sync alerts use this saved preference."
+            value={notificationsEnabled}
+            onValueChange={(value) => void setNotificationsEnabled(value)}
+          />
+        </SectionCard>
+
+        <SectionCard title="Backup Status" icon="cloud">
+          <View style={styles.statusRow}>
+            <StatusPill label={syncStatus} color={syncColor} />
+            <StatusPill label={backupStatus} color={backupColor} />
+          </View>
+          <InfoRow icon="clock" label="Last Sync" value={lastSyncTime} accent={syncColor} />
+          <InfoRow icon="database" label="Automatic Backup" value={backupTimestamp} accent={backupColor} />
+          <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+            Backup runs automatically when the app is online. Manual backup controls are not required.
           </Text>
-        </View>
+        </SectionCard>
 
-        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-          <View style={[styles.sectionHead, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Teacher Profile</Text>
-            <Feather name="user-check" size={18} color={colors.primary} />
-          </View>
-
-          <InfoRow label="Name" value={teacherProfile.name} />
-          <InfoRow label="Role" value={teacherProfile.role} />
-          <InfoRow label="Teacher ID" value={teacherProfile.teacherId} />
-          <InfoRow label="School" value={teacherProfile.school} />
-          <InfoRow label="Grades Handled" value={teacherProfile.gradesHandled} />
-          <InfoRow label="Subjects Handled" value={teacherProfile.subjectsHandled} />
-          <InfoRow label="Total Students" value={students.length} />
-          <InfoRow label="Academic Year" value={teacherProfile.academicYear} />
-        </View>
-
-        <View style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-          <View style={[styles.sectionHead, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Application Information</Text>
-            <Feather name="info" size={18} color={colors.primary} />
-          </View>
-
-          <InfoRow label="Version" value={appInformation.version} />
-          <InfoRow label="Build" value={appInformation.build} />
-          <InfoRow label="Storage Usage" value={appInformation.storageUsage} />
-        </View>
+        <SectionCard title="Other Settings" icon="sliders">
+          <InfoRow icon="layers" label="Class Levels Handled" value={teacherProfile.classLevelsHandled} />
+          <InfoRow icon="book-open" label="Academic Year" value={teacherProfile.academicYear} />
+        </SectionCard>
       </ScrollView>
     </SafeAreaView>
   );
@@ -208,66 +278,68 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
   contentContainer: { padding: 16, paddingBottom: 104 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  pageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerCopy: { flex: 1, minWidth: 0 },
   crumb: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
-  title: { fontSize: 29, lineHeight: 35, fontWeight: '900', marginTop: 5 },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
+  title: { fontSize: 30, lineHeight: 36, fontWeight: '900', marginTop: 4 },
   profileCard: {
-    borderRadius: 16,
-    padding: 15,
+    borderRadius: 8,
+    padding: 14,
     marginTop: 16,
     borderWidth: 1,
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  profileTop: { flexDirection: 'row', alignItems: 'center', gap: 13 },
-  avatarCircle: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatarCircle: { width: 54, height: 54, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 22, fontWeight: '900' },
-  profileMeta: { flex: 1, minWidth: 0 },
-  teacherName: { fontSize: 22, fontWeight: '900' },
-  teacherTitle: { fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 4 },
+  profileCopy: { flex: 1, minWidth: 0 },
+  teacherName: { fontSize: 22, lineHeight: 28, fontWeight: '900' },
+  teacherSchool: { fontSize: 13, lineHeight: 18, fontWeight: '700', marginTop: 3 },
+  teacherMeta: { fontSize: 12, lineHeight: 17, fontWeight: '800', marginTop: 5 },
   sectionCard: {
-    borderRadius: 16,
-    padding: 15,
-    marginTop: 14,
+    borderRadius: 8,
     borderWidth: 1,
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    padding: 14,
+    marginTop: 14,
   },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12, borderBottomWidth: 1, gap: 10 },
-  sectionTitle: { flex: 1, minWidth: 0, fontSize: 18, fontWeight: '900' },
-  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingVertical: 13, borderBottomWidth: 1 },
-  settingLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rowIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  settingCopy: { flex: 1, minWidth: 0 },
-  settingTitle: { fontWeight: '900', fontSize: 14 },
-  settingSubtitle: { fontWeight: '700', fontSize: 12, marginTop: 3 },
-  rowValue: { maxWidth: '42%', minWidth: 92, textAlign: 'right', fontWeight: '800', fontSize: 12, lineHeight: 16, flexShrink: 1 },
-  statusPanel: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 13, marginBottom: 3 },
-  statusChip: { minHeight: 34, borderRadius: 17, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingBottom: 12, borderBottomWidth: 1 },
+  sectionTitle: { flex: 1, minWidth: 0, fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  sectionIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: 1 },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 13, borderBottomWidth: 1 },
+  rowIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  rowCopy: { flex: 1, minWidth: 0 },
+  rowTitle: { fontSize: 14, lineHeight: 19, fontWeight: '900' },
+  rowSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3 },
+  infoLabel: { fontSize: 11, lineHeight: 15, fontWeight: '900', textTransform: 'uppercase' },
+  infoValue: { fontSize: 14, lineHeight: 20, fontWeight: '900', marginTop: 3 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 13 },
+  statusPill: { minHeight: 34, borderRadius: 8, borderWidth: 1, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 7 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusChipText: { fontSize: 12, fontWeight: '900' },
-  lastSyncText: { flex: 1, minWidth: 0, fontSize: 12, fontWeight: '700' },
-  backupButton: { minHeight: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginTop: 14 },
-  backupButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', flexShrink: 1 },
-  backupState: { fontSize: 12, fontWeight: '800', marginTop: 9 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 12, borderBottomWidth: 1 },
-  infoLabel: { flex: 0.42, minWidth: 0, fontSize: 12, fontWeight: '800' },
-  infoValue: { flex: 0.58, minWidth: 0, textAlign: 'right', fontSize: 13, lineHeight: 18, fontWeight: '900' },
+  statusPillText: { fontSize: 12, fontWeight: '900' },
+  helperText: { fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 10 },
+  daySelectorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 14 },
+  dayChip: {
+    minWidth: 48,
+    minHeight: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayChipText: { fontSize: 12, fontWeight: '900' },
+  timetablePanel: { borderWidth: 1, borderRadius: 8, padding: 14, marginTop: 12 },
+  timetableTitle: { fontSize: 16, lineHeight: 21, fontWeight: '900' },
+  timetableCaption: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 3, marginBottom: 8 },
+  slotRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1 },
+  slotTimePill: { width: 108, minHeight: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  slotTimeText: { fontSize: 12, fontWeight: '900' },
+  slotCopy: { flex: 1, minWidth: 0 },
+  slotLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
+  slotGradeBadge: { minWidth: 42, minHeight: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  slotGradeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900' },
+  slotSubject: { flex: 1, minWidth: 0, fontSize: 15, lineHeight: 20, fontWeight: '900' },
+  slotSubtitle: { fontSize: 12, lineHeight: 17, fontWeight: '700', marginTop: 5 },
 });

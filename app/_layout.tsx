@@ -42,7 +42,6 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="student-detail" options={{ headerShown: true, title: 'Student Detail' }} />
         <Stack.Screen name="assessment-detail" options={{ headerShown: true, title: 'Assessment Detail' }} />
-        <Stack.Screen name="planner-detail" options={{ headerShown: true, title: 'Planner Detail' }} />
         <Stack.Screen name="analytics-topic-detail" options={{ headerShown: true, title: 'Analytics Detail' }} />
       </Stack>
       <StatusBar style={darkMode ? 'light' : 'dark'} />
